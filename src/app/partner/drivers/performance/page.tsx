@@ -754,9 +754,6 @@ export default function DriverPerformancePage() {
                             {performance.performance.total_rentals} rentals
                           </div>
                           <div className="text-sm text-gray-500">
-                            {performance.performance.completed_rentals} completed
-                          </div>
-                          <div className="text-sm text-gray-500">
                             {formatMileage(performance.performance.total_mileage)}
                           </div>
                           <div className="text-sm text-gray-500">
