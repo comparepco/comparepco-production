@@ -1,0 +1,1100 @@
+"use client";
+
+import React, { useState, useCallback, memo } from "react";
+import { useRouter } from "next/navigation";
+import Link from "next/link";
+import {
+  FaBuilding,
+  FaUserCircle,
+  FaMapMarkerAlt,
+  FaCheck,
+  FaEye,
+  FaEyeSlash,
+  FaExclamationTriangle,
+  FaUpload,
+  FaArrowRight,
+  FaArrowLeft,
+  FaSpinner,
+  FaShieldAlt,
+  FaFileAlt,
+  FaCreditCard,
+  FaHandshake,
+} from "react-icons/fa";
+import { supabase } from "@/lib/supabase/client";
+
+/* ------------------------------------------------------------------
+ * CONSTANTS & TYPES
+ * ----------------------------------------------------------------*/
+
+const BUSINESS_TYPES = [
+  { value: "transport_company", label: "Transport Company" },
+  { value: "pco_operator", label: "PCO Operator" },
+  { value: "taxi_fleet", label: "Taxi Fleet" },
+  { value: "minicab_operator", label: "Minicab Operator" },
+  { value: "private_hire_operator", label: "Private Hire Operator" },
+  { value: "car_rental", label: "Car Rental Company" },
+];
+
+const VEHICLE_TYPES = [
+  "Standard Cars",
+  "Premium Cars", 
+  "Electric Vehicles",
+  "Hybrid Vehicles",
+  "Wheelchair Accessible",
+  "Minibuses (8-16 seats)",
+  "Executive Vehicles",
+  "Estate Cars",
+];
+
+const OPERATING_AREAS = [
+  "Central London",
+  "North London",
+  "South London", 
+  "East London",
+  "West London",
+  "Greater London",
+  "Birmingham",
+  "Manchester",
+  "Liverpool",
+  "Leeds",
+  "Glasgow",
+  "Edinburgh",
+  "Cardiff",
+  "Belfast",
+  "Bristol",
+  "Sheffield",
+  "Newcastle",
+  "Nationwide",
+];
+
+const REQUIRED_DOCS = [
+  { key: "businessLicense", label: "Business License", required: true },
+  { key: "insuranceCertificate", label: "Public Liability Insurance Certificate", required: true },
+  { key: "operatorLicense", label: "Operator / PCO License", required: true },
+  { key: "taxCertificate", label: "Tax Certificate / HMRC Registration", required: false },
+] as const;
+
+type DocKey = (typeof REQUIRED_DOCS)[number]["key"];
+
+interface FormData {
+  // Business Information
+  companyName: string;
+  businessEmail: string;
+  password: string;
+  confirmPassword: string;
+  companyRegistrationNumber: string;
+  vatNumber: string;
+  businessType: string;
+  
+  // Director Information
+  directorName: string;
+  directorEmail: string;
+  directorPhone: string;
+  
+  // Address
+  businessAddress: {
+    street: string;
+    city: string;
+    county: string;
+    postcode: string;
+    country: string;
+  };
+  
+  // Operating Details
+  operatingAreas: string[];
+  vehicleTypes: string[];
+  yearsInBusiness: string;
+  numberOfVehicles: string;
+  
+  // Payment
+  paymentMethod: string;
+  bankDetails: {
+    accountName: string;
+    accountNumber: string;
+    sortCode: string;
+  };
+  
+  // Consents
+  consents: {
+    termsAndConditions: boolean;
+    privacyPolicy: boolean;
+    dataProcessing: boolean;
+    marketingEmails: boolean;
+    marketingSMS: boolean;
+    marketingPromotions: boolean;
+  };
+}
+
+/* ------------------------------------------------------------------
+ * MAIN COMPONENT
+ * ----------------------------------------------------------------*/
+
+export default function PartnerRegisterPage() {
+  const [step, setStep] = useState<1 | 2 | 3>(1);
+  const [showPassword, setShowPassword] = useState(false);
+  const [isSubmitting, setIsSubmitting] = useState(false);
+  const [error, setError] = useState<string>("");
+  const [success, setSuccess] = useState<string>("");
+  const router = useRouter();
+
+  const [form, setForm] = useState<FormData>({
+    companyName: "",
+    businessEmail: "",
+    password: "",
+    confirmPassword: "",
+    companyRegistrationNumber: "",
+    vatNumber: "",
+    businessType: BUSINESS_TYPES[0].value,
+    directorName: "",
+    directorEmail: "",
+    directorPhone: "",
+    businessAddress: {
+      street: "",
+      city: "",
+      county: "",
+      postcode: "",
+      country: "United Kingdom",
+    },
+    operatingAreas: [],
+    vehicleTypes: [],
+    yearsInBusiness: "",
+    numberOfVehicles: "",
+    paymentMethod: "",
+    bankDetails: {
+      accountName: "",
+      accountNumber: "",
+      sortCode: "",
+    },
+    consents: {
+      termsAndConditions: false,
+      privacyPolicy: false,
+      dataProcessing: false,
+      marketingEmails: false,
+      marketingSMS: false,
+      marketingPromotions: false,
+    },
+  });
+
+  const [documents, setDocuments] = useState<Record<DocKey, File | null>>({
+    businessLicense: null,
+    insuranceCertificate: null,
+    operatorLicense: null,
+    taxCertificate: null,
+  });
+
+  /* -------------------- HANDLERS -------------------- */
+  
+  const handleInputChange = useCallback((e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>) => {
+    const { name, value } = e.target;
+    
+    if (name.includes('.')) {
+      const [parent, child] = name.split('.');
+      setForm(prev => ({
+        ...prev,
+        [parent]: {
+          ...(prev[parent as keyof FormData] as any),
+          [child]: value
+        }
+      }));
+    } else {
+      setForm(prev => ({ ...prev, [name]: value }));
+    }
+    
+    setError("");
+  }, []);
+
+  const handleConsentChange = useCallback((field: keyof FormData['consents']) => {
+    setForm(prev => ({
+      ...prev,
+      consents: {
+        ...prev.consents,
+        [field]: !prev.consents[field]
+      }
+    }));
+    setError("");
+  }, []);
+
+  const toggleMultiSelect = useCallback((field: "operatingAreas" | "vehicleTypes", value: string) => {
+    setForm(prev => ({
+      ...prev,
+      [field]: prev[field].includes(value)
+        ? prev[field].filter(item => item !== value)
+        : [...prev[field], value]
+    }));
+    setError("");
+  }, []);
+
+  const handleFileUpload = useCallback((key: DocKey, file: File | null) => {
+    setDocuments(prev => ({ ...prev, [key]: file }));
+    setError("");
+  }, []);
+
+  /* -------------------- VALIDATION -------------------- */
+  
+  const validateStep = useCallback((current: 1 | 2 | 3): boolean => {
+    if (current === 1) {
+      if (!form.companyName.trim()) {
+        setError("Company name is required");
+        return false;
+      }
+      if (!form.businessEmail.trim() || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(form.businessEmail)) {
+        setError("Valid business email is required");
+        return false;
+      }
+      if (!form.password || form.password.length < 8) {
+        setError("Password must be at least 8 characters");
+        return false;
+      }
+      if (form.password !== form.confirmPassword) {
+        setError("Passwords do not match");
+        return false;
+      }
+      if (!form.directorName.trim()) {
+        setError("Director name is required");
+        return false;
+      }
+      if (!form.directorEmail.trim() || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(form.directorEmail)) {
+        setError("Valid director email is required");
+        return false;
+      }
+      if (!form.directorPhone.trim()) {
+        setError("Director phone is required");
+        return false;
+      }
+      if (!form.companyRegistrationNumber.trim()) {
+        setError("Company registration number is required");
+        return false;
+      }
+      if (!form.businessAddress.street.trim() || !form.businessAddress.city.trim() || !form.businessAddress.postcode.trim()) {
+        setError("Complete business address is required");
+        return false;
+      }
+      return true;
+    }
+    
+    if (current === 2) {
+      if (!form.yearsInBusiness.trim()) {
+        setError("Years in business is required");
+        return false;
+      }
+      if (!form.numberOfVehicles.trim()) {
+        setError("Number of vehicles is required");
+        return false;
+      }
+      if (form.operatingAreas.length === 0) {
+        setError("Select at least one operating area");
+        return false;
+      }
+      if (form.vehicleTypes.length === 0) {
+        setError("Select at least one vehicle type");
+        return false;
+      }
+      if (!form.paymentMethod) {
+        setError("Select a payment method");
+        return false;
+      }
+      if (form.paymentMethod === "bank_transfer" || form.paymentMethod === "both") {
+        if (!form.bankDetails.accountName.trim() || !form.bankDetails.accountNumber.trim() || !form.bankDetails.sortCode.trim()) {
+          setError("Complete bank details are required");
+          return false;
+        }
+      }
+      return true;
+    }
+    
+    if (current === 3) {
+      if (!documents.businessLicense) {
+        setError("Business license is required");
+        return false;
+      }
+      if (!documents.insuranceCertificate) {
+        setError("Insurance certificate is required");
+        return false;
+      }
+      if (!documents.operatorLicense) {
+        setError("Operator license is required");
+        return false;
+      }
+      if (!form.consents.termsAndConditions) {
+        setError("You must accept the terms and conditions");
+        return false;
+      }
+      if (!form.consents.privacyPolicy) {
+        setError("You must accept the privacy policy");
+        return false;
+      }
+      return true;
+    }
+    
+    return false;
+  }, [form, documents]);
+
+  const handleNext = useCallback(() => {
+    if (validateStep(step)) {
+      setError("");
+      setStep((s) => (s + 1) as 1 | 2 | 3);
+    }
+  }, [validateStep, step]);
+
+  const handlePrevious = useCallback(() => {
+    setStep((s) => (s - 1) as 1 | 2 | 3);
+    setError("");
+  }, []);
+
+  const handleSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    
+    if (!validateStep(3)) return;
+    
+    setIsSubmitting(true);
+    setError("");
+    setSuccess("");
+
+    try {
+      // 1. Create Supabase Auth user
+      const { data: { user }, error: signUpError } = await supabase.auth.signUp({
+        email: form.businessEmail,
+        password: form.password,
+        options: {
+          data: {
+            name: form.companyName,
+            role: 'PARTNER'
+          }
+        }
+      });
+
+      if (signUpError) throw signUpError;
+      if (!user) throw new Error("Failed to create user account");
+
+      // 2. Upload documents to Supabase Storage
+      const docUrls: Record<string, { url: string; uploaded_at: string }> = {};
+      
+      for (const [key, file] of Object.entries(documents)) {
+        if (!file) continue;
+        
+        const filePath = `${user.id}/${key}_${Date.now()}_${file.name}`;
+        const { error: uploadError } = await supabase.storage
+          .from("partner-documents")
+          .upload(filePath, file, {
+            contentType: file.type,
+            upsert: false
+          });
+          
+        if (uploadError) throw uploadError;
+        
+        const { data: { publicUrl } } = supabase.storage
+          .from("partner-documents")
+          .getPublicUrl(filePath);
+          
+        docUrls[key] = {
+          url: publicUrl,
+          uploaded_at: new Date().toISOString()
+        };
+      }
+
+      // 3. Create user profile
+      const { error: userError } = await supabase.from("users").insert({
+        id: user.id,
+        email: form.businessEmail,
+        name: form.companyName,
+        role: "PARTNER",
+        phone: form.directorPhone.replace(/\s/g, ""),
+        is_active: true,
+        created_at: new Date().toISOString(),
+        updated_at: new Date().toISOString(),
+      });
+
+      if (userError) throw userError;
+
+      // 4. Create partner record
+      const { error: partnerError } = await supabase.from("partners").insert({
+        id: user.id,
+        company_name: form.companyName,
+        contact_person: form.directorName,
+        email: form.businessEmail,
+        phone: form.directorPhone.replace(/\s/g, ""),
+        business_type: form.businessType,
+        company_registration_number: form.companyRegistrationNumber,
+        vat_number: form.vatNumber,
+        address: `${form.businessAddress.street}, ${form.businessAddress.city}, ${form.businessAddress.postcode}, ${form.businessAddress.country}`,
+        operating_areas: form.operatingAreas,
+        vehicle_types: form.vehicleTypes,
+        years_in_business: parseInt(form.yearsInBusiness),
+        fleet_size: parseInt(form.numberOfVehicles),
+        payment_method: form.paymentMethod,
+        bank_details: form.bankDetails,
+        status: "pending_verification",
+        documents: docUrls,
+        created_at: new Date().toISOString(),
+        updated_at: new Date().toISOString(),
+      });
+
+      if (partnerError) throw partnerError;
+
+      setSuccess("Registration successful! Please check your email for verification.");
+      
+      // Redirect after 3 seconds
+      setTimeout(() => {
+        router.push("/auth/login");
+      }, 3000);
+
+    } catch (err: any) {
+      console.error("Registration error:", err);
+      setError(err.message || "Registration failed. Please try again.");
+    } finally {
+      setIsSubmitting(false);
+    }
+  };
+
+  /* -------------------- UI COMPONENTS -------------------- */
+  
+  const StepIndicator = memo(() => (
+    <div className="mb-8">
+      <div className="flex justify-between mb-4">
+        {[1, 2, 3].map((i) => (
+          <div key={i} className="flex items-center">
+            <div
+              className={`w-10 h-10 flex items-center justify-center rounded-full border-2 ${
+                i <= step 
+                  ? "bg-blue-600 border-blue-600 text-white" 
+                  : "bg-white border-gray-300 text-gray-500"
+              }`}
+            >
+              {i < step ? <FaCheck className="w-5 h-5" /> : i}
+            </div>
+            {i < 3 && (
+              <div
+                className={`flex-1 h-1 mx-4 ${
+                  i < step ? "bg-blue-600" : "bg-gray-300"
+                }`}
+              />
+            )}
+          </div>
+        ))}
+      </div>
+      <div className="text-center">
+        <h2 className="text-lg font-semibold text-gray-900">
+          {step === 1 && "Business Information"}
+          {step === 2 && "Operating Details"}
+          {step === 3 && "Documents & Verification"}
+        </h2>
+        <p className="text-gray-600 mt-1">
+          Step {step} of 3
+        </p>
+      </div>
+    </div>
+  ));
+  StepIndicator.displayName = "StepIndicator";
+
+  const InputField = memo(({ 
+    label, 
+    name, 
+    type = "text", 
+    placeholder, 
+    required = false,
+    ...props 
+  }: {
+    label: string;
+    name: string;
+    type?: string;
+    placeholder?: string;
+    required?: boolean;
+    [key: string]: any;
+  }) => (
+    <div>
+      <label htmlFor={name} className="block text-sm font-medium text-gray-700 mb-2">
+        {label} {required && <span className="text-red-500">*</span>}
+      </label>
+      <input
+        id={name}
+        name={name}
+        type={type}
+        placeholder={placeholder}
+        required={required}
+        className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-colors"
+        {...props}
+      />
+    </div>
+  ));
+  InputField.displayName = "InputField";
+
+  const MultiSelect = memo(({ 
+    label, 
+    options, 
+    selected, 
+    onToggle, 
+    required = false 
+  }: {
+    label: string;
+    options: string[];
+    selected: string[];
+    onToggle: (value: string) => void;
+    required?: boolean;
+  }) => (
+    <div>
+      <label className="block text-sm font-medium text-gray-700 mb-2">
+        {label} {required && <span className="text-red-500">*</span>}
+      </label>
+      <div className="grid grid-cols-2 md:grid-cols-3 gap-2">
+        {options.map((option) => (
+          <button
+            key={option}
+            type="button"
+            onClick={() => onToggle(option)}
+            className={`p-3 text-sm rounded-lg border transition-colors ${
+              selected.includes(option)
+                ? "bg-blue-50 border-blue-500 text-blue-700"
+                : "bg-white border-gray-300 text-gray-700 hover:border-gray-400"
+            }`}
+          >
+            {option}
+          </button>
+        ))}
+      </div>
+    </div>
+  ));
+  MultiSelect.displayName = "MultiSelect";
+
+  const FileUpload = memo(({ 
+    label, 
+    required = false,
+    onFileSelect,
+    selectedFile 
+  }: {
+    label: string;
+    required?: boolean;
+    onFileSelect: (file: File | null) => void;
+    selectedFile: File | null;
+  }) => (
+    <div>
+      <label className="block text-sm font-medium text-gray-700 mb-2">
+        {label} {required && <span className="text-red-500">*</span>}
+      </label>
+      <div className="border-2 border-dashed border-gray-300 rounded-lg p-6 text-center hover:border-blue-400 transition-colors">
+        {selectedFile ? (
+          <div className="space-y-2">
+            <FaFileAlt className="w-8 h-8 text-green-500 mx-auto" />
+            <p className="text-sm text-gray-600">{selectedFile.name}</p>
+            <button
+              type="button"
+              onClick={() => onFileSelect(null)}
+              className="text-red-500 text-sm hover:text-red-700"
+            >
+              Remove
+            </button>
+          </div>
+        ) : (
+          <div>
+            <FaUpload className="w-8 h-8 text-gray-400 mx-auto mb-2" />
+            <p className="text-sm text-gray-600 mb-2">Click to upload or drag and drop</p>
+            <input
+              type="file"
+              onChange={(e) => onFileSelect(e.target.files?.[0] || null)}
+              className="hidden"
+              id={`file-${label}`}
+              accept=".pdf,.doc,.docx,.jpg,.jpeg,.png"
+            />
+            <label
+              htmlFor={`file-${label}`}
+              className="cursor-pointer bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700 transition-colors"
+            >
+              Choose File
+            </label>
+          </div>
+        )}
+      </div>
+    </div>
+  ));
+  FileUpload.displayName = "FileUpload";
+
+  const ConsentCheckbox = memo(({ 
+    label, 
+    checked, 
+    onChange, 
+    required = false 
+  }: {
+    label: string;
+    checked: boolean;
+    onChange: () => void;
+    required?: boolean;
+  }) => (
+    <label className="flex items-start space-x-3 cursor-pointer">
+      <input
+        type="checkbox"
+        checked={checked}
+        onChange={onChange}
+        className="mt-1 h-4 w-4 text-blue-600 focus:ring-blue-500 border-gray-300 rounded"
+      />
+      <span className="text-sm text-gray-700">
+        {label} {required && <span className="text-red-500">*</span>}
+      </span>
+    </label>
+  ));
+  ConsentCheckbox.displayName = "ConsentCheckbox";
+
+  /* -------------------- STEP COMPONENTS -------------------- */
+  
+  const Step1 = memo(() => (
+    <div className="space-y-8">
+      {/* Business Information */}
+      <div className="bg-blue-50 p-6 rounded-lg">
+        <h3 className="flex items-center mb-6 text-xl font-semibold text-gray-900">
+          <FaBuilding className="mr-3 text-blue-600" />
+          Business Information
+        </h3>
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+          <InputField
+            label="Company Name"
+            name="companyName"
+            placeholder="Enter company name"
+            value={form.companyName}
+            onChange={handleInputChange}
+            required
+          />
+          <InputField
+            label="Business Email"
+            name="businessEmail"
+            type="email"
+            placeholder="Enter business email"
+            value={form.businessEmail}
+            onChange={handleInputChange}
+            required
+          />
+          <div className="relative">
+            <InputField
+              label="Password"
+              name="password"
+              type={showPassword ? "text" : "password"}
+              placeholder="Create password (min 8 characters)"
+              value={form.password}
+              onChange={handleInputChange}
+              required
+            />
+            <button
+              type="button"
+              onClick={() => setShowPassword(!showPassword)}
+              className="absolute right-3 top-10 text-gray-400 hover:text-gray-600"
+            >
+              {showPassword ? <FaEyeSlash /> : <FaEye />}
+            </button>
+          </div>
+          <InputField
+            label="Confirm Password"
+            name="confirmPassword"
+            type="password"
+            placeholder="Confirm your password"
+            value={form.confirmPassword}
+            onChange={handleInputChange}
+            required
+          />
+          <InputField
+            label="Company Registration Number"
+            name="companyRegistrationNumber"
+            placeholder="Enter registration number"
+            value={form.companyRegistrationNumber}
+            onChange={handleInputChange}
+            required
+          />
+          <InputField
+            label="VAT Number (Optional)"
+            name="vatNumber"
+            placeholder="Enter VAT number"
+            value={form.vatNumber}
+            onChange={handleInputChange}
+          />
+        </div>
+        <div className="mt-6">
+          <label className="block text-sm font-medium text-gray-700 mb-2">
+            Business Type <span className="text-red-500">*</span>
+          </label>
+          <select
+            name="businessType"
+            value={form.businessType}
+            onChange={handleInputChange}
+            className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+          >
+            {BUSINESS_TYPES.map((type) => (
+              <option key={type.value} value={type.value}>
+                {type.label}
+              </option>
+            ))}
+          </select>
+        </div>
+      </div>
+
+      {/* Director Information */}
+      <div className="bg-green-50 p-6 rounded-lg">
+        <h3 className="flex items-center mb-6 text-xl font-semibold text-gray-900">
+          <FaUserCircle className="mr-3 text-green-600" />
+          Director Information
+        </h3>
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+          <InputField
+            label="Director Name"
+            name="directorName"
+            placeholder="Enter director name"
+            value={form.directorName}
+            onChange={handleInputChange}
+            required
+          />
+          <InputField
+            label="Director Email"
+            name="directorEmail"
+            type="email"
+            placeholder="Enter director email"
+            value={form.directorEmail}
+            onChange={handleInputChange}
+            required
+          />
+          <InputField
+            label="Director Phone"
+            name="directorPhone"
+            type="tel"
+            placeholder="Enter director phone"
+            value={form.directorPhone}
+            onChange={handleInputChange}
+            required
+          />
+        </div>
+      </div>
+
+      {/* Business Address */}
+      <div className="bg-purple-50 p-6 rounded-lg">
+        <h3 className="flex items-center mb-6 text-xl font-semibold text-gray-900">
+          <FaMapMarkerAlt className="mr-3 text-purple-600" />
+          Business Address
+        </h3>
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+          <div className="md:col-span-2">
+            <InputField
+              label="Street Address"
+              name="businessAddress.street"
+              placeholder="Enter street address"
+              value={form.businessAddress.street}
+              onChange={handleInputChange}
+              required
+            />
+          </div>
+          <InputField
+            label="City"
+            name="businessAddress.city"
+            placeholder="Enter city"
+            value={form.businessAddress.city}
+            onChange={handleInputChange}
+            required
+          />
+          <InputField
+            label="County"
+            name="businessAddress.county"
+            placeholder="Enter county"
+            value={form.businessAddress.county}
+            onChange={handleInputChange}
+          />
+          <InputField
+            label="Postcode"
+            name="businessAddress.postcode"
+            placeholder="Enter postcode"
+            value={form.businessAddress.postcode}
+            onChange={handleInputChange}
+            required
+          />
+          <InputField
+            label="Country"
+            name="businessAddress.country"
+            value={form.businessAddress.country}
+            onChange={handleInputChange}
+            required
+          />
+        </div>
+      </div>
+    </div>
+  ));
+  Step1.displayName = "Step1";
+
+  const Step2 = memo(() => (
+    <div className="space-y-8">
+      {/* Operating Details */}
+      <div className="bg-orange-50 p-6 rounded-lg">
+        <h3 className="flex items-center mb-6 text-xl font-semibold text-gray-900">
+          <FaShieldAlt className="mr-3 text-orange-600" />
+          Operating Details
+        </h3>
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+          <InputField
+            label="Years in Business"
+            name="yearsInBusiness"
+            type="number"
+            placeholder="Enter years in business"
+            value={form.yearsInBusiness}
+            onChange={handleInputChange}
+            required
+          />
+          <InputField
+            label="Number of Vehicles"
+            name="numberOfVehicles"
+            type="number"
+            placeholder="Enter number of vehicles"
+            value={form.numberOfVehicles}
+            onChange={handleInputChange}
+            required
+          />
+        </div>
+        
+        <div className="mt-6">
+          <MultiSelect
+            label="Operating Areas"
+            options={OPERATING_AREAS}
+            selected={form.operatingAreas}
+            onToggle={(value) => toggleMultiSelect("operatingAreas", value)}
+            required
+          />
+        </div>
+        
+        <div className="mt-6">
+          <MultiSelect
+            label="Vehicle Types"
+            options={VEHICLE_TYPES}
+            selected={form.vehicleTypes}
+            onToggle={(value) => toggleMultiSelect("vehicleTypes", value)}
+            required
+          />
+        </div>
+      </div>
+
+      {/* Payment Information */}
+      <div className="bg-yellow-50 p-6 rounded-lg">
+        <h3 className="flex items-center mb-6 text-xl font-semibold text-gray-900">
+          <FaCreditCard className="mr-3 text-yellow-600" />
+          Payment Information
+        </h3>
+        <div className="space-y-4">
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-2">
+              Payment Method <span className="text-red-500">*</span>
+            </label>
+            <div className="space-y-2">
+              {[
+                { value: "direct_debit", label: "Direct Debit" },
+                { value: "bank_transfer", label: "Bank Transfer" },
+                { value: "both", label: "Both" }
+              ].map((method) => (
+                <label key={method.value} className="flex items-center space-x-3 cursor-pointer">
+                  <input
+                    type="radio"
+                    name="paymentMethod"
+                    value={method.value}
+                    checked={form.paymentMethod === method.value}
+                    onChange={handleInputChange}
+                    className="h-4 w-4 text-blue-600 focus:ring-blue-500 border-gray-300"
+                  />
+                  <span className="text-sm text-gray-700">{method.label}</span>
+                </label>
+              ))}
+            </div>
+          </div>
+          
+          {(form.paymentMethod === "bank_transfer" || form.paymentMethod === "both") && (
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+              <InputField
+                label="Account Name"
+                name="bankDetails.accountName"
+                placeholder="Enter account name"
+                value={form.bankDetails.accountName}
+                onChange={handleInputChange}
+                required
+              />
+              <InputField
+                label="Account Number"
+                name="bankDetails.accountNumber"
+                placeholder="Enter account number"
+                value={form.bankDetails.accountNumber}
+                onChange={handleInputChange}
+                required
+              />
+              <InputField
+                label="Sort Code"
+                name="bankDetails.sortCode"
+                placeholder="Enter sort code"
+                value={form.bankDetails.sortCode}
+                onChange={handleInputChange}
+                required
+              />
+            </div>
+          )}
+        </div>
+      </div>
+    </div>
+  ));
+  Step2.displayName = "Step2";
+
+  const Step3 = memo(() => (
+    <div className="space-y-8">
+      {/* Document Upload */}
+      <div className="bg-red-50 p-6 rounded-lg">
+        <h3 className="flex items-center mb-6 text-xl font-semibold text-gray-900">
+          <FaFileAlt className="mr-3 text-red-600" />
+          Required Documents
+        </h3>
+        <div className="space-y-6">
+          {REQUIRED_DOCS.map((doc) => (
+            <FileUpload
+              key={doc.key}
+              label={doc.label}
+              required={doc.required}
+              selectedFile={documents[doc.key]}
+              onFileSelect={(file) => handleFileUpload(doc.key, file)}
+            />
+          ))}
+        </div>
+      </div>
+
+      {/* Terms and Consents */}
+      <div className="bg-indigo-50 p-6 rounded-lg">
+        <h3 className="flex items-center mb-6 text-xl font-semibold text-gray-900">
+          <FaHandshake className="mr-3 text-indigo-600" />
+          Terms and Consents
+        </h3>
+        <div className="space-y-4">
+          <ConsentCheckbox
+            label="I accept the Terms and Conditions"
+            checked={form.consents.termsAndConditions}
+            onChange={() => handleConsentChange("termsAndConditions")}
+            required
+          />
+          <ConsentCheckbox
+            label="I accept the Privacy Policy"
+            checked={form.consents.privacyPolicy}
+            onChange={() => handleConsentChange("privacyPolicy")}
+            required
+          />
+          <ConsentCheckbox
+            label="I consent to data processing"
+            checked={form.consents.dataProcessing}
+            onChange={() => handleConsentChange("dataProcessing")}
+          />
+          <ConsentCheckbox
+            label="I agree to receive marketing emails"
+            checked={form.consents.marketingEmails}
+            onChange={() => handleConsentChange("marketingEmails")}
+          />
+          <ConsentCheckbox
+            label="I agree to receive SMS notifications"
+            checked={form.consents.marketingSMS}
+            onChange={() => handleConsentChange("marketingSMS")}
+          />
+          <ConsentCheckbox
+            label="I agree to receive promotional offers"
+            checked={form.consents.marketingPromotions}
+            onChange={() => handleConsentChange("marketingPromotions")}
+          />
+        </div>
+      </div>
+    </div>
+  ));
+  Step3.displayName = "Step3";
+
+  /* -------------------- MAIN RENDER -------------------- */
+  
+  return (
+    <div className="min-h-screen bg-gradient-to-br from-blue-50 to-indigo-100 py-8 px-4">
+      <div className="max-w-4xl mx-auto">
+        <div className="bg-white rounded-2xl shadow-xl p-8">
+          {/* Header */}
+          <header className="text-center mb-8">
+            <h1 className="text-4xl font-bold text-gray-900 mb-2">
+              Partner Registration
+            </h1>
+            <p className="text-gray-600 text-lg">
+              Join ComparePCO as a verified partner and start growing your business
+            </p>
+          </header>
+
+          <StepIndicator />
+
+          {/* Form */}
+          <form onSubmit={step === 3 ? handleSubmit : undefined} className="space-y-8">
+            {step === 1 && <Step1 />}
+            {step === 2 && <Step2 />}
+            {step === 3 && <Step3 />}
+
+            {/* Error/Success Messages */}
+            {error && (
+              <div className="bg-red-50 border border-red-200 rounded-lg p-4 text-red-700">
+                <div className="flex items-center">
+                  <FaExclamationTriangle className="mr-2" />
+                  {error}
+                </div>
+              </div>
+            )}
+
+            {success && (
+              <div className="bg-green-50 border border-green-200 rounded-lg p-4 text-green-700">
+                <div className="flex items-center">
+                  <FaCheck className="mr-2" />
+                  {success}
+                </div>
+              </div>
+            )}
+
+            {/* Navigation Buttons */}
+            <div className="flex justify-between items-center pt-6 border-t border-gray-200">
+              <div>
+                {step > 1 && (
+                  <button
+                    type="button"
+                    onClick={handlePrevious}
+                    className="flex items-center px-6 py-3 border border-gray-300 rounded-lg text-gray-700 hover:bg-gray-50 transition-colors"
+                  >
+                    <FaArrowLeft className="mr-2" />
+                    Previous
+                  </button>
+                )}
+              </div>
+              
+              <div className="flex items-center space-x-4">
+                {step < 3 ? (
+                  <button
+                    type="button"
+                    onClick={handleNext}
+                    className="flex items-center px-6 py-3 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors"
+                  >
+                    Next
+                    <FaArrowRight className="ml-2" />
+                  </button>
+                ) : (
+                  <button
+                    type="submit"
+                    disabled={isSubmitting}
+                    className="flex items-center px-8 py-3 bg-green-600 text-white rounded-lg hover:bg-green-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+                  >
+                    {isSubmitting ? (
+                      <>
+                        <FaSpinner className="mr-2 animate-spin" />
+                        Submitting...
+                      </>
+                    ) : (
+                      <>
+                        <FaUpload className="mr-2" />
+                        Submit Application
+                      </>
+                    )}
+                  </button>
+                )}
+              </div>
+            </div>
+          </form>
+
+          {/* Footer */}
+          <div className="text-center mt-8 pt-6 border-t border-gray-200">
+            <p className="text-gray-600">
+              Already have an account?{" "}
+              <Link href="/auth/login" className="text-blue-600 hover:text-blue-700 font-medium">
+                Sign in here
+              </Link>
+            </p>
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+} 

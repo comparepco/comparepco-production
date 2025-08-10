@@ -1,0 +1,750 @@
+// This is your Prisma schema file,
+// learn more about it in the docs: https://pris.ly/d/prisma-schema
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+// User and Authentication Models
+model User {
+  id            String    @id @default(cuid())
+  email         String    @unique
+  phone         String?
+  firstName     String
+  lastName      String
+  avatar        String?
+  role          UserRole  @default(USER)
+  isActive      Boolean   @default(true)
+  isVerified    Boolean   @default(false)
+  createdAt     DateTime  @default(now())
+  updatedAt     DateTime  @updatedAt
+
+  // Relations
+  partner       Partner?
+  driver        Driver?
+  admin         Admin?
+  bookings      Booking[]
+  documents     Document[]
+  notifications Notification[]
+  payments      Payment[]
+  claims        Claim[]
+  staff         PartnerStaff?
+  sentMessages  Message[]      @relation("MessageSender")
+  receivedMessages Message[]    @relation("MessageReceiver")
+  maintenance   Maintenance[]
+  promoCodeUsage PromoCodeUsage[]
+  referralsAsReferrer Referral[] @relation("Referrer")
+  referralsAsReferee Referral[] @relation("Referee")
+
+  @@map("users")
+}
+
+enum UserRole {
+  SUPER_ADMIN
+  ADMIN
+  ADMIN_STAFF
+  STAFF
+  PARTNER
+  PARTNER_STAFF
+  DRIVER
+}
+
+// Partner Models
+model Partner {
+  id                String    @id @default(cuid())
+  userId            String    @unique
+  companyName       String
+  businessType      String
+  taxId             String?
+  address           String
+  city              String
+  state             String
+  country           String
+  postalCode        String
+  phone             String
+  website           String?
+  description       String?
+  logo              String?
+  isApproved        Boolean   @default(false)
+  isActive          Boolean   @default(true)
+  createdAt         DateTime  @default(now())
+  updatedAt         DateTime  @updatedAt
+
+  // Relations
+  user              User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  fleet             Vehicle[]
+  drivers           Driver[]
+  bookings          Booking[]
+  documents         Document[]
+  vehicleDocuments  VehicleDocument[]
+
+  payments          Payment[]
+  claims            Claim[]
+  staff             PartnerStaff[]
+  paymentInstructions PaymentInstruction[]
+  notifications       Notification[]
+  maintenance       Maintenance[]
+  promoCodes        PromoCode[]
+  socialCampaigns   SocialCampaign[]
+  referralPrograms  ReferralProgram[]
+
+  @@map("partners")
+}
+
+model PartnerStaff {
+  id          String    @id @default(cuid())
+  partnerId   String
+  userId      String    @unique
+  role        String
+  department  String?   @default("Operations")
+  position    String?
+  startDate   DateTime?
+  salary      Decimal?
+  address     String?
+  emergencyContactName String?
+  emergencyContactPhone String?
+  emergencyContactRelationship String?
+  notes       String?
+  lastLogin   DateTime?
+  loginCount  Int?      @default(0)
+  permissions Json?
+  isActive    Boolean   @default(true)
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
+
+  // Relations
+  partner     Partner   @relation(fields: [partnerId], references: [id], onDelete: Cascade)
+  user        User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@map("partner_staff")
+}
+
+// Driver Models
+model Driver {
+  id              String    @id @default(cuid())
+  userId          String    @unique
+  partnerId       String?
+  licenseNumber   String    @unique
+  licenseExpiry   DateTime
+  insuranceNumber String?
+  insuranceExpiry DateTime?
+  experience      Int       @default(0)
+  rating          Float     @default(0)
+  totalTrips      Int       @default(0)
+  totalEarnings   Float     @default(0)
+  isApproved      Boolean   @default(false)
+  isActive        Boolean   @default(true)
+  createdAt       DateTime  @default(now())
+  updatedAt       DateTime  @updatedAt
+
+  // Relations
+  user            User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  partner         Partner?  @relation(fields: [partnerId], references: [id])
+  bookings        Booking[]
+  documents       Document[]
+  payments        Payment[]
+  claims          Claim[]
+  vehicles        Vehicle[]
+
+  @@map("drivers")
+}
+
+// Admin Models
+model Admin {
+  id        String    @id @default(cuid())
+  userId    String    @unique
+  role      AdminRole @default(ADMIN)
+  isActive  Boolean   @default(true)
+  createdAt DateTime  @default(now())
+  updatedAt DateTime  @updatedAt
+
+  // Relations
+  user      User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@map("admins")
+}
+
+enum AdminRole {
+  SUPER_ADMIN
+  ADMIN
+}
+
+// Vehicle Models
+model Vehicle {
+  id              String        @id @default(cuid())
+  partnerId       String
+  driverId        String?
+  name            String?
+  make            String?
+  model           String?
+  year            Int?
+  licensePlate    String?       @unique
+  vin             String?       @unique
+  color           String?
+  fuelType        FuelType?
+  transmission    Transmission?
+  seats           Int?
+  doors           Int?
+  mileage         Int?
+  engine          String?
+  location        String?
+  description     String?
+  dailyRate       Float?
+  weeklyRate      Float?
+  monthlyRate     Float?
+  pricePerWeek    Float?
+  pricePerDay     Float?
+  category        String?
+  imageUrls       String[]
+  features        String[]
+  insuranceExpiry DateTime?
+  motExpiry       DateTime?
+  roadTaxExpiry   DateTime?
+  nextService     DateTime?
+  insuranceIncluded Boolean     @default(false)
+  insuranceDetails Json?
+  pricing         Json?
+  rideHailingCategories String[]
+  documentVerificationStatus String? @default("pending")
+  visibleOnPlatform     Boolean       @default(false)
+  isAvailable     Boolean       @default(true)
+  isApproved      Boolean       @default(false)
+  isActive        Boolean       @default(true)
+  createdAt       DateTime      @default(now())
+  updatedAt       DateTime      @updatedAt
+
+  // Relations
+  partner         Partner       @relation(fields: [partnerId], references: [id], onDelete: Cascade)
+  driver          Driver?       @relation(fields: [driverId], references: [id])
+  bookings        Booking[]
+  documents       Document[]
+  vehicleDocuments VehicleDocument[]
+
+  maintenance     Maintenance[]
+  claims          Claim[]
+
+  @@map("vehicles")
+}
+
+enum FuelType {
+  GASOLINE
+  DIESEL
+  ELECTRIC
+  HYBRID
+  PLUGIN_HYBRID
+}
+
+enum Transmission {
+  MANUAL
+  AUTOMATIC
+  CVT
+}
+
+// Booking Models
+model Booking {
+  id              String        @id @default(cuid())
+  userId          String
+  partnerId       String
+  driverId        String?
+  vehicleId       String
+  startDate       DateTime
+  endDate         DateTime
+  totalDays       Int
+  totalAmount     Float
+  deposit         Float?
+  status          BookingStatus @default(PENDING)
+  pickupLocation  String
+  dropoffLocation String?
+  notes           String?
+  createdAt       DateTime      @default(now())
+  updatedAt       DateTime      @updatedAt
+
+  // Relations
+  user            User          @relation(fields: [userId], references: [id], onDelete: Cascade)
+  partner         Partner       @relation(fields: [partnerId], references: [id], onDelete: Cascade)
+  driver          Driver?       @relation(fields: [driverId], references: [id])
+  vehicle         Vehicle       @relation(fields: [vehicleId], references: [id], onDelete: Cascade)
+  payments        Payment[]
+  claims          Claim[]
+  promoCodeUsage  PromoCodeUsage[]
+  referrals       Referral[]
+
+  @@map("bookings")
+}
+
+enum BookingStatus {
+  PENDING
+  CONFIRMED
+  ACTIVE
+  COMPLETED
+  CANCELLED
+  REFUNDED
+}
+
+// Payment Models
+model Payment {
+  id              String        @id @default(cuid())
+  userId          String
+  partnerId       String?
+  driverId        String?
+  bookingId       String?
+  amount          Float
+  currency        String        @default("USD")
+  type            PaymentType
+  status          PaymentStatus @default(PENDING)
+  method          PaymentMethod
+  transactionId   String?
+  description     String?
+  createdAt       DateTime      @default(now())
+  updatedAt       DateTime      @updatedAt
+
+  // Relations
+  user            User          @relation(fields: [userId], references: [id], onDelete: Cascade)
+  partner         Partner?      @relation(fields: [partnerId], references: [id])
+  driver          Driver?       @relation(fields: [driverId], references: [id])
+  booking         Booking?      @relation(fields: [bookingId], references: [id])
+
+  @@map("payments")
+}
+
+// Payment Instruction Models for Partner Payments
+model PaymentInstruction {
+  id              String        @id @default(cuid())
+  partnerId       String
+  amount          Float
+  frequency       PaymentFrequency
+  type            PaymentInstructionType
+  status          PaymentStatus @default(PENDING)
+  nextDueDate     DateTime
+  description     String?
+  createdAt       DateTime      @default(now())
+  updatedAt       DateTime      @updatedAt
+
+  // Relations
+  partner         Partner       @relation(fields: [partnerId], references: [id], onDelete: Cascade)
+
+  @@map("payment_instructions")
+}
+
+enum PaymentFrequency {
+  WEEKLY
+  MONTHLY
+  QUARTERLY
+  ONE_OFF
+}
+
+enum PaymentInstructionType {
+  WEEKLY_RENT
+  DEPOSIT
+  COMMISSION
+  FEE
+  OTHER
+}
+
+enum PaymentType {
+  BOOKING_PAYMENT
+  DEPOSIT
+  REFUND
+  COMMISSION
+  BONUS
+  FINE
+}
+
+enum PaymentStatus {
+  PENDING
+  PROCESSING
+  COMPLETED
+  FAILED
+  CANCELLED
+  REFUNDED
+}
+
+enum PaymentMethod {
+  CREDIT_CARD
+  DEBIT_CARD
+  BANK_TRANSFER
+  CASH
+  DIGITAL_WALLET
+}
+
+// Document Models
+model Document {
+  id          String           @id @default(cuid())
+  userId      String
+  partnerId   String?
+  driverId    String?
+  vehicleId   String?
+  type        DocumentType
+  name        String
+  fileUrl     String
+  fileSize    Int
+  mimeType    String
+  isVerified  Boolean          @default(false)
+  expiresAt   DateTime?
+  createdAt   DateTime         @default(now())
+  updatedAt   DateTime         @updatedAt
+
+  // Relations
+  user        User             @relation(fields: [userId], references: [id], onDelete: Cascade)
+  partner     Partner?         @relation(fields: [partnerId], references: [id])
+  driver      Driver?          @relation(fields: [driverId], references: [id])
+  vehicle     Vehicle?         @relation(fields: [vehicleId], references: [id])
+
+  @@map("documents")
+}
+
+model VehicleDocument {
+  id          String    @id @default(cuid())
+  vehicleId   String
+  partnerId   String
+  type        String
+  fileUrl     String
+  fileName    String
+  expiryDate  DateTime?
+  uploadDate  DateTime  @default(now())
+  status      String    @default("pending_review")
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
+
+  // Relations
+  vehicle     Vehicle   @relation(fields: [vehicleId], references: [id], onDelete: Cascade)
+  partner     Partner   @relation(fields: [partnerId], references: [id], onDelete: Cascade)
+
+  @@map("vehicle_documents")
+}
+
+
+
+enum DocumentType {
+  LICENSE
+  INSURANCE
+  REGISTRATION
+  INSPECTION
+  CONTRACT
+  ID_PROOF
+  ADDRESS_PROOF
+  BANK_STATEMENT
+  TAX_DOCUMENT
+  OTHER
+}
+
+// Claim Models
+model Claim {
+  id              String        @id @default(cuid())
+  userId          String
+  partnerId       String?
+  driverId        String?
+  vehicleId       String?
+  bookingId       String?
+  type            ClaimType
+  title           String
+  description     String
+  amount          Float?
+  status          ClaimStatus   @default(OPEN)
+  priority        ClaimPriority @default(MEDIUM)
+  evidence        String[]
+  createdAt       DateTime      @default(now())
+  updatedAt       DateTime      @updatedAt
+
+  // Relations
+  user            User          @relation(fields: [userId], references: [id], onDelete: Cascade)
+  partner         Partner?      @relation(fields: [partnerId], references: [id])
+  driver          Driver?       @relation(fields: [driverId], references: [id])
+  vehicle         Vehicle?      @relation(fields: [vehicleId], references: [id])
+  booking         Booking?      @relation(fields: [bookingId], references: [id])
+
+  @@map("claims")
+}
+
+enum ClaimType {
+  ACCIDENT
+  DAMAGE
+  THEFT
+  MECHANICAL
+  INSURANCE
+  OTHER
+}
+
+enum ClaimStatus {
+  OPEN
+  IN_PROGRESS
+  RESOLVED
+  CLOSED
+  REJECTED
+}
+
+enum ClaimPriority {
+  LOW
+  MEDIUM
+  HIGH
+  URGENT
+}
+
+// Maintenance Models
+model Maintenance {
+  id                String              @id @default(cuid())
+  partnerId         String
+  vehicleId         String
+  vehicleName       String
+  vehiclePlate      String
+  type              MaintenanceType
+  title             String
+  description       String?
+  status            MaintenanceStatus   @default(SCHEDULED)
+  priority          MaintenancePriority @default(MEDIUM)
+  scheduledDate     DateTime
+  completedDate     DateTime?
+  cost              Float              @default(0)
+  estimatedCost     Float              @default(0)
+  mileage           Int                @default(0)
+  nextServiceMileage Int?
+  provider          Json               @default("{\"name\": \"\", \"contact\": \"\", \"address\": \"\", \"rating\": null}")
+  parts             Json               @default("[]")
+  attachments       Json               @default("[]")
+  notes             String?
+  createdBy         String
+  createdAt         DateTime           @default(now())
+  updatedAt         DateTime           @updatedAt
+
+  // Relations
+  partner           Partner             @relation(fields: [partnerId], references: [id], onDelete: Cascade)
+  vehicle           Vehicle             @relation(fields: [vehicleId], references: [id], onDelete: Cascade)
+  creator           User                @relation(fields: [createdBy], references: [id], onDelete: Cascade)
+
+  @@map("maintenance_records")
+}
+
+enum MaintenanceType {
+  SERVICE
+  REPAIR
+  MOT
+  INSURANCE
+  INSPECTION
+  OTHER
+}
+
+enum MaintenanceStatus {
+  SCHEDULED
+  IN_PROGRESS
+  COMPLETED
+  CANCELLED
+  OVERDUE
+}
+
+enum MaintenancePriority {
+  LOW
+  MEDIUM
+  HIGH
+  URGENT
+}
+
+// Notification Models
+model Notification {
+  id          String             @id @default(cuid())
+  userId      String?
+  partnerId   String?
+  type        NotificationType
+  title       String
+  message     String
+  isRead      Boolean            @default(false)
+  data        Json?
+  createdAt   DateTime           @default(now())
+
+  // Relations
+  user        User?              @relation(fields: [userId], references: [id], onDelete: Cascade)
+  partner     Partner?           @relation(fields: [partnerId], references: [id], onDelete: Cascade)
+
+  @@map("notifications")
+}
+
+enum NotificationType {
+  BOOKING_UPDATE
+  PAYMENT_RECEIVED
+  DOCUMENT_EXPIRY
+  MAINTENANCE_DUE
+  CLAIM_UPDATE
+  SYSTEM_ALERT
+  PROMOTION
+}
+
+// Message Models
+model Message {
+  id          String    @id @default(cuid())
+  senderId    String
+  receiverId  String
+  content     String
+  type        MessageType @default(TEXT)
+  isRead      Boolean   @default(false)
+  createdAt   DateTime  @default(now())
+
+  // Relations
+  sender      User      @relation("MessageSender", fields: [senderId], references: [id], onDelete: Cascade)
+  receiver    User      @relation("MessageReceiver", fields: [receiverId], references: [id], onDelete: Cascade)
+
+  @@map("messages")
+}
+
+enum MessageType {
+  TEXT
+  IMAGE
+  FILE
+  SYSTEM
+}
+
+// Analytics Models
+model Analytics {
+  id          String    @id @default(cuid())
+  type        String
+  data        Json
+  date        DateTime
+  createdAt   DateTime  @default(now())
+
+  @@map("analytics")
+}
+
+// Marketing Models
+model PromoCode {
+  id                String    @id @default(cuid())
+  partnerId         String
+  code              String    @unique
+  name              String
+  description       String?
+  discountType      DiscountType
+  discountValue     Float
+  minAmount         Float?
+  maxDiscount       Float?
+  usageLimit        Int
+  usedCount         Int       @default(0)
+  startDate         DateTime
+  endDate           DateTime
+  isActive          Boolean   @default(true)
+  applicableFleets  String[]  @default([])
+  createdAt         DateTime  @default(now())
+  updatedAt         DateTime  @updatedAt
+
+  // Relations
+  partner           Partner   @relation(fields: [partnerId], references: [id], onDelete: Cascade)
+  usageHistory      PromoCodeUsage[]
+
+  @@map("promo_codes")
+}
+
+model PromoCodeUsage {
+  id          String    @id @default(cuid())
+  promoCodeId String
+  userId      String
+  bookingId   String?
+  amount      Float
+  discount    Float
+  usedAt      DateTime  @default(now())
+
+  // Relations
+  promoCode   PromoCode @relation(fields: [promoCodeId], references: [id], onDelete: Cascade)
+  user        User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  booking     Booking?  @relation(fields: [bookingId], references: [id])
+
+  @@map("promo_code_usage")
+}
+
+model SocialCampaign {
+  id                String    @id @default(cuid())
+  partnerId         String
+  name              String
+  platform          SocialPlatform
+  content           String
+  imageUrl          String?
+  linkUrl           String?
+  status            CampaignStatus @default(DRAFT)
+  scheduledDate     DateTime?
+  engagementMetrics Json       @default("{\"views\": 0, \"clicks\": 0, \"shares\": 0, \"conversions\": 0}")
+  createdAt         DateTime   @default(now())
+  updatedAt         DateTime   @updatedAt
+
+  // Relations
+  partner           Partner   @relation(fields: [partnerId], references: [id], onDelete: Cascade)
+
+  @@map("social_campaigns")
+}
+
+model ReferralProgram {
+  id                    String    @id @default(cuid())
+  partnerId             String
+  name                  String
+  description           String?
+  referrerReward        Float
+  refereeReward         Float
+  rewardType            RewardType
+  minBookingAmount      Float?
+  maxReferralsPerUser   Int?
+  isActive              Boolean   @default(true)
+  totalReferrals        Int       @default(0)
+  totalRewardsPaid      Float     @default(0)
+  createdAt             DateTime  @default(now())
+  updatedAt             DateTime  @updatedAt
+
+  // Relations
+  partner               Partner   @relation(fields: [partnerId], references: [id], onDelete: Cascade)
+  referrals             Referral[]
+
+  @@map("referral_programs")
+}
+
+model Referral {
+  id                String    @id @default(cuid())
+  programId         String
+  referrerId        String
+  refereeId         String
+  bookingId         String?
+  status            ReferralStatus @default(PENDING)
+  referrerReward    Float?
+  refereeReward     Float?
+  completedAt       DateTime?
+  createdAt         DateTime  @default(now())
+  updatedAt         DateTime  @updatedAt
+
+  // Relations
+  program            ReferralProgram @relation(fields: [programId], references: [id], onDelete: Cascade)
+  referrer           User            @relation("Referrer", fields: [referrerId], references: [id], onDelete: Cascade)
+  referee            User            @relation("Referee", fields: [refereeId], references: [id], onDelete: Cascade)
+  booking            Booking?        @relation(fields: [bookingId], references: [id])
+
+  @@map("referrals")
+}
+
+enum DiscountType {
+  PERCENTAGE
+  FIXED
+}
+
+enum SocialPlatform {
+  FACEBOOK
+  TWITTER
+  INSTAGRAM
+  LINKEDIN
+  WHATSAPP
+  EMAIL
+}
+
+enum CampaignStatus {
+  DRAFT
+  SCHEDULED
+  ACTIVE
+  PAUSED
+  COMPLETED
+}
+
+enum RewardType {
+  PERCENTAGE
+  FIXED
+}
+
+enum ReferralStatus {
+  PENDING
+  COMPLETED
+  CANCELLED
+} 
