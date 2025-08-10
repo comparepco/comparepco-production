@@ -87,13 +87,14 @@ const navigation = [
   // MAINTENANCE & SERVICE
   {
     name: 'Maintenance & Service',
-    href: '/partner/maintenance',
+    href: '/partner/maintenance/overview',
     icon: FaTools,
     color: 'text-orange-600',
     bgColor: 'bg-orange-100',
     requiredPermission: 'canManageMaintenence',
     category: 'maintenance',
     subItems: [
+      { name: 'Overview', href: '/partner/maintenance/overview', icon: FaTools },
       { name: 'Service Schedule', href: '/partner/maintenance/schedule', icon: FaCalendarCheck },
       { name: 'Service History', href: '/partner/maintenance/history', icon: FaClipboardList },
       { name: 'Parts Inventory', href: '/partner/maintenance/parts', icon: FaBoxes },
