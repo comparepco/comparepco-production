@@ -135,6 +135,18 @@ export default function MaintenanceOverviewPage() {
     notes: ''
   });
 
+  // Sidebar width for modal overlay safety
+  const [sidebarLeft, setSidebarLeft] = useState(0);
+  useEffect(() => {
+    const updateLeft = () => {
+      const el = typeof window !== 'undefined' ? document.getElementById('partner-sidebar') : null;
+      setSidebarLeft(el?.offsetWidth || 0);
+    };
+    updateLeft();
+    window.addEventListener('resize', updateLeft);
+    return () => window.removeEventListener('resize', updateLeft);
+  }, []);
+
   useEffect(() => {
     if (authLoading || didInitRef.current) return;
     didInitRef.current = true;
@@ -866,7 +878,8 @@ export default function MaintenanceOverviewPage() {
         <>
           {/* Backdrop Blur */}
           <div 
-            className="fixed inset-0 z-40 bg-black bg-opacity-50 lg:left-72" 
+            className="fixed inset-0 z-40 bg-black bg-opacity-50" 
+            style={{ left: sidebarLeft }}
             onClick={() => {
               setShowForm(false);
               setEditRecord(null);

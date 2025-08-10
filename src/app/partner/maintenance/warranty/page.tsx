@@ -622,7 +622,11 @@ export default function WarrantyManagementPage() {
       {/* Form Modal */}
       {showForm && (
         <>
-          <div className="fixed inset-0 bg-black bg-opacity-50 z-40 lg:left-72" onClick={() => setShowForm(false)} />
+          <div
+            className="fixed inset-0 bg-black bg-opacity-50 z-40"
+            style={{ left: (typeof window !== 'undefined' ? (document.getElementById('partner-sidebar')?.offsetWidth || 0) : 0) }}
+            onClick={() => setShowForm(false)}
+          />
           <div className="fixed inset-0 flex items-center justify-center p-4 z-50">
             <div className="bg-white rounded-lg shadow-xl max-w-4xl w-full max-h-[90vh] overflow-y-auto">
               <div className="p-6 border-b border-gray-200">
