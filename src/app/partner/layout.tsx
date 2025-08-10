@@ -765,7 +765,7 @@ export default function PartnerLayout({
       )}
 
       {/* Desktop Sidebar - Hidden on mobile */}
-      <div className={`${isMobile ? 'hidden' : (sidebarCollapsed ? 'w-20' : 'w-72')} bg-white shadow-xl border-r border-gray-200 transition-all duration-300 flex flex-col`}>
+      <div id="partner-sidebar" className={`${isMobile ? 'hidden' : (sidebarCollapsed ? 'w-20' : 'w-72')} bg-white shadow-xl border-r border-gray-200 transition-all duration-300 flex flex-col relative z-[200]`}>
         {/* Logo */}
         <div className="p-6 border-b border-gray-200">
           <div className="flex items-center justify-between">

@@ -866,12 +866,7 @@ export default function MaintenanceOverviewPage() {
         <>
           {/* Backdrop Blur */}
           <div 
-            className="fixed inset-0 z-40" 
-            style={{ 
-              backgroundColor: 'rgba(0, 0, 0, 0.6)',
-              backdropFilter: 'blur(15px)',
-              WebkitBackdropFilter: 'blur(15px)'
-            } as React.CSSProperties}
+            className="fixed inset-0 z-40 bg-black bg-opacity-50 lg:left-72" 
             onClick={() => {
               setShowForm(false);
               setEditRecord(null);
