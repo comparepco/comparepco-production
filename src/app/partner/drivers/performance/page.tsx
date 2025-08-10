@@ -100,6 +100,7 @@ const getPerformanceLevel = (rating: number) => {
 export default function DriverPerformancePage() {
   const { user, loading: authLoading } = useAuth();
   const router = useRouter();
+  const didInitRef = React.useRef(false);
   
   const [driverPerformances, setDriverPerformances] = useState<DriverPerformance[]>([]);
   const [filteredPerformances, setFilteredPerformances] = useState<DriverPerformance[]>([]);
@@ -412,6 +413,8 @@ export default function DriverPerformancePage() {
       router.replace('/auth/login');
       return;
     }
+    if (didInitRef.current) return;
+    didInitRef.current = true;
     loadDriverPerformances();
   }, [user, authLoading]);
 

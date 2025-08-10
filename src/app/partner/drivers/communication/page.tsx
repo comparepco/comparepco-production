@@ -1,5 +1,6 @@
 'use client';
 import React, { useState, useEffect } from 'react';
+import React, { useRef } from 'react';
 import { useAuth } from '../../../../contexts/AuthContext';
 import { useRouter } from 'next/navigation';
 import { 
@@ -89,6 +90,7 @@ const CONTACT_METHOD_COLORS = {
 export default function DriverCommunicationPage() {
   const { user, loading: authLoading } = useAuth();
   const router = useRouter();
+  const didInitRef = React.useRef(false);
   
   const [driverCommunications, setDriverCommunications] = useState<DriverCommunication[]>([]);
   const [filteredCommunications, setFilteredCommunications] = useState<DriverCommunication[]>([]);
@@ -358,6 +360,8 @@ export default function DriverCommunicationPage() {
       router.replace('/auth/login');
       return;
     }
+    if (didInitRef.current) return;
+    didInitRef.current = true;
     loadDriverCommunications();
   }, [user, authLoading]);
 

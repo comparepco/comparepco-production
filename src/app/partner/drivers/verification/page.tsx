@@ -1,5 +1,6 @@
 'use client';
 import React, { useState, useEffect } from 'react';
+import React, { useRef } from 'react';
 import { useAuth } from '../../../../contexts/AuthContext';
 import { useRouter } from 'next/navigation';
 import { 
@@ -97,6 +98,7 @@ const ADMIN_STATUS_COLORS = {
 export default function DriverVerificationPage() {
   const { user, loading: authLoading } = useAuth();
   const router = useRouter();
+  const didInitRef = React.useRef(false);
   
   const [driverVerifications, setDriverVerifications] = useState<DriverVerification[]>([]);
   const [filteredVerifications, setFilteredVerifications] = useState<DriverVerification[]>([]);
@@ -376,6 +378,8 @@ export default function DriverVerificationPage() {
       router.replace('/auth/login');
       return;
     }
+    if (didInitRef.current) return;
+    didInitRef.current = true;
     loadDriverVerifications();
   }, [user, authLoading]);
 

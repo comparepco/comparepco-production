@@ -1,5 +1,6 @@
 'use client';
 import React, { useState, useEffect } from 'react';
+import React, { useRef } from 'react';
 import { useAuth } from '../../../../contexts/AuthContext';
 import { useRouter } from 'next/navigation';
 import { 
@@ -89,6 +90,7 @@ const PAYMENT_STATUS_COLORS = {
 export default function DriverHistoryPage() {
   const { user, loading: authLoading } = useAuth();
   const router = useRouter();
+  const didInitRef = React.useRef(false);
   
   const [driverHistory, setDriverHistory] = useState<DriverHistory[]>([]);
   const [filteredHistory, setFilteredHistory] = useState<DriverHistory[]>([]);
@@ -339,6 +341,8 @@ export default function DriverHistoryPage() {
       router.replace('/auth/login');
       return;
     }
+    if (didInitRef.current) return;
+    didInitRef.current = true;
     loadDriverHistory();
   }, [user, authLoading]);
 

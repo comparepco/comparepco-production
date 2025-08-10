@@ -1,5 +1,7 @@
 'use client';
 import React, { useState, useEffect, useMemo } from 'react';
+// Add useRef to prevent duplicate fetches in React Strict Mode
+import React, { useRef } from 'react';
 import { useAuth } from '../../../../contexts/AuthContext';
 import { useRouter } from 'next/navigation';
 import { 
@@ -125,6 +127,7 @@ const PAYMENT_STATUS_COLORS = {
 export default function RentedDriversPage() {
   const { user, loading: authLoading } = useAuth();
   const router = useRouter();
+  const didInitRef = React.useRef(false);
   
   // State management
   const [rentedDrivers, setRentedDrivers] = useState<RentedDriver[]>([]);
@@ -431,13 +434,15 @@ export default function RentedDriversPage() {
     setCurrentPage(1);
   }, [rentedDrivers, searchTerm, statusFilter, paymentFilter, vehicleFilter, ratingFilter, sortBy, sortOrder]);
 
-  // Wait for auth state
+  // Ensure effect runs only once after auth resolves
   useEffect(() => {
     if (authLoading) return;
     if (!user) {
       router.replace('/auth/login');
       return;
     }
+    if (didInitRef.current) return;
+    didInitRef.current = true;
     loadRentedDrivers();
   }, [user, authLoading]);
 
