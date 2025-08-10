@@ -84,9 +84,9 @@ const navigation = [
     ]
   },
 
-  // MAINTENANCE & SERVICE
+  // MAINTENANCE
   {
-    name: 'Maintenance & Service',
+    name: 'Maintenance',
     href: '/partner/maintenance/overview',
     icon: FaTools,
     color: 'text-orange-600',
@@ -630,11 +630,15 @@ export default function PartnerLayout({
               {/* Mobile Navigation */}
               <nav className="p-4 space-y-2">
                 {filteredNavigation.map((item) => {
-                  // Improved active state logic
+                  // Improved active state logic for maintenance pages
                   const isExactMatch = pathname === item.href;
                   const isActive = isExactMatch || (item.href !== '/partner' && pathname.startsWith(item.href));
                   const hasSubItems = item.subItems && item.subItems.length > 0;
                   const isExpanded = expandedCategories.has(item.category || '');
+                  
+                  // Special handling for maintenance pages to ensure proper active state
+                  const isMaintenanceActive = item.category === 'maintenance' && pathname.startsWith('/partner/maintenance');
+                  const finalIsActive = isMaintenanceActive || isActive;
                   
                   return (
                     <div key={item.name} className="space-y-1">
@@ -643,14 +647,14 @@ export default function PartnerLayout({
                         <Link
                           href={item.href}
                           className={`flex-1 flex items-center gap-3 px-3 py-3 rounded-xl transition-all duration-200 group ${
-                            isActive
+                            finalIsActive
                               ? `${item.bgColor} ${item.color} shadow-sm`
                               : 'text-gray-700 hover:bg-gray-100'
                           }`}
                           onClick={() => setShowMobileSidebar(false)}
                         >
-                          <div className={`p-2 rounded-lg ${isActive ? 'bg-white shadow-sm' : 'group-hover:bg-white group-hover:shadow-sm'} transition-all duration-200`}>
-                            <item.icon className={`w-4 h-4 ${isActive ? item.color : 'text-gray-600'}`} />
+                          <div className={`p-2 rounded-lg ${finalIsActive ? 'bg-white shadow-sm' : 'group-hover:bg-white group-hover:shadow-sm'} transition-all duration-200`}>
+                            <item.icon className={`w-4 h-4 ${finalIsActive ? item.color : 'text-gray-600'}`} />
                           </div>
                           <span className="font-medium flex items-center gap-1">
                             {item.name}
@@ -802,13 +806,17 @@ export default function PartnerLayout({
           {/*  Removed temporary debug buttons */}
           
           {filteredNavigation.map((item) => {
-            // Improved active state logic
+            // Improved active state logic for maintenance pages
             const isExactMatch = pathname === item.href;
             const isActive = isExactMatch || (item.href !== '/partner' && pathname.startsWith(item.href));
             const hasSubItems = item.subItems && item.subItems.length > 0;
             const isExpanded = expandedCategories.has(item.category || '');
             
-            console.log('Navigation item:', item.name, 'href:', item.href, 'isActive:', isActive);
+            // Special handling for maintenance pages to ensure proper active state
+            const isMaintenanceActive = item.category === 'maintenance' && pathname.startsWith('/partner/maintenance');
+            const finalIsActive = isMaintenanceActive || isActive;
+            
+            console.log('Navigation item:', item.name, 'href:', item.href, 'isActive:', finalIsActive, 'isMaintenanceActive:', isMaintenanceActive);
             
             return (
               <div key={item.name} className="space-y-1" style={{ position: 'relative', zIndex: 1001 }}>
@@ -831,7 +839,7 @@ export default function PartnerLayout({
                       console.log('Mouse up on:', item.name);
                     }}
                     className={`flex-1 flex items-center gap-3 px-3 py-3 rounded-xl transition-all duration-200 group cursor-pointer text-left ${
-                      isActive
+                      finalIsActive
                         ? `${item.bgColor} ${item.color} shadow-sm`
                         : 'text-gray-700 hover:bg-gray-100'
                     }`}
@@ -843,8 +851,8 @@ export default function PartnerLayout({
                       userSelect: 'none'
                     }}
                   >
-                    <div className={`p-2 rounded-lg ${isActive ? 'bg-white shadow-sm' : 'group-hover:bg-white group-hover:shadow-sm'} transition-all duration-200`}>
-                      <item.icon className={`w-4 h-4 ${isActive ? item.color : 'text-gray-600'}`} />
+                    <div className={`p-2 rounded-lg ${finalIsActive ? 'bg-white shadow-sm' : 'group-hover:bg-white group-hover:shadow-sm'} transition-all duration-200`}>
+                      <item.icon className={`w-4 h-4 ${finalIsActive ? item.color : 'text-gray-600'}`} />
                     </div>
                     {!sidebarCollapsed && (
                       <span className="font-medium flex items-center gap-1">
@@ -904,7 +912,8 @@ export default function PartnerLayout({
                           style={{ 
                             pointerEvents: 'auto',
                             position: 'relative',
-                            zIndex: 1002
+                            zIndex: 1003,
+                            userSelect: 'none'
                           }}
                         >
                           <subItem.icon className={`w-3 h-3 ${isSubActive ? 'text-blue-600' : 'text-gray-400'}`} />
