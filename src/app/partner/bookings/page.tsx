@@ -1099,73 +1099,55 @@ export default function PartnerBookingsPage() {
       </div>
 
       {/* Stats Cards */}
-      <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-5 gap-6 mb-8">
-        {/* Total */}
-        <div className="bg-white p-6 rounded-2xl shadow-sm border border-gray-200 hover:shadow-md transition-all duration-200">
-          <div className="flex items-center justify-between">
-            <div>
-              <p className="text-sm font-medium text-gray-600 mb-1">Total Bookings</p>
-              <p className="text-3xl font-bold text-gray-900">{stats.total}</p>
-              <p className="text-xs text-green-600 mt-1">All bookings</p>
-            </div>
-            <div className="bg-gradient-to-br from-blue-500 to-blue-600 p-3 rounded-xl">
+      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
+        <div className="bg-white p-6 rounded-xl shadow-sm border border-gray-200">
+          <div className="flex items-center gap-4">
+            <div className="bg-blue-500 p-3 rounded-lg">
               <FaCalendarAlt className="w-6 h-6 text-white" />
             </div>
+            <div>
+              <p className="text-sm font-medium text-gray-600">Total Bookings</p>
+              <p className="text-2xl font-bold text-gray-900">{stats.total}</p>
+              <p className="text-xs text-green-600">All bookings</p>
+            </div>
           </div>
         </div>
-
-        {/* Pending */}
-        <div className="bg-white p-6 rounded-2xl shadow-sm border border-gray-200 hover:shadow-md transition-all duration-200">
-          <div className="flex items-center justify-between">
-            <div>
-              <p className="text-sm font-medium text-gray-600 mb-1">Pending</p>
-              <p className="text-3xl font-bold text-gray-900">{stats.pending}</p>
-              <p className="text-xs text-yellow-600 mt-1">Awaiting action</p>
-            </div>
-            <div className="bg-gradient-to-br from-yellow-500 to-yellow-600 p-3 rounded-xl">
+        
+        <div className="bg-white p-6 rounded-xl shadow-sm border border-gray-200">
+          <div className="flex items-center gap-4">
+            <div className="bg-yellow-500 p-3 rounded-lg">
               <FaClock className="w-6 h-6 text-white" />
             </div>
-          </div>
-        </div>
-
-        {/* Accepted */}
-        <div className="bg-white p-6 rounded-2xl shadow-sm border border-gray-200 hover:shadow-md transition-all duration-200">
-          <div className="flex items-center justify-between">
             <div>
-              <p className="text-sm font-medium text-gray-600 mb-1">Accepted</p>
-              <p className="text-3xl font-bold text-gray-900">{stats.accepted}</p>
-              <p className="text-xs text-blue-600 mt-1">Partner accepted</p>
-            </div>
-            <div className="bg-gradient-to-br from-blue-500 to-blue-600 p-3 rounded-xl">
-              <FaCheck className="w-6 h-6 text-white" />
+              <p className="text-sm font-medium text-gray-600">Pending</p>
+              <p className="text-2xl font-bold text-gray-900">{stats.pending}</p>
+              <p className="text-xs text-yellow-600">Awaiting action</p>
             </div>
           </div>
         </div>
-
-        {/* Active */}
-        <div className="bg-white p-6 rounded-2xl shadow-sm border border-gray-200 hover:shadow-md transition-all duration-200">
-          <div className="flex items-center justify-between">
-            <div>
-              <p className="text-sm font-medium text-gray-600 mb-1">Active</p>
-              <p className="text-3xl font-bold text-gray-900">{stats.active}</p>
-              <p className="text-xs text-green-600 mt-1">Ongoing bookings</p>
-            </div>
-            <div className="bg-gradient-to-br from-green-500 to-green-600 p-3 rounded-xl">
+        
+        <div className="bg-white p-6 rounded-xl shadow-sm border border-gray-200">
+          <div className="flex items-center gap-4">
+            <div className="bg-green-500 p-3 rounded-lg">
               <FaCheckCircle className="w-6 h-6 text-white" />
             </div>
+            <div>
+              <p className="text-sm font-medium text-gray-600">Active</p>
+              <p className="text-2xl font-bold text-gray-900">{stats.active}</p>
+              <p className="text-xs text-green-600">Ongoing bookings</p>
+            </div>
           </div>
         </div>
-
-        {/* Rejected */}
-        <div className="bg-white p-6 rounded-2xl shadow-sm border border-gray-200 hover:shadow-md transition-all duration-200">
-          <div className="flex items-center justify-between">
-            <div>
-              <p className="text-sm font-medium text-gray-600 mb-1">Rejected</p>
-              <p className="text-3xl font-bold text-gray-900">{stats.rejected}</p>
-              <p className="text-xs text-red-600 mt-1">Declined bookings</p>
+        
+        <div className="bg-white p-6 rounded-xl shadow-sm border border-gray-200">
+          <div className="flex items-center gap-4">
+            <div className="bg-purple-500 p-3 rounded-lg">
+              <FaMoneyBillWave className="w-6 h-6 text-white" />
             </div>
-            <div className="bg-gradient-to-br from-red-500 to-red-600 p-3 rounded-xl">
-              <FaTimes className="w-6 h-6 text-white" />
+            <div>
+              <p className="text-sm font-medium text-gray-600">Total Revenue</p>
+              <p className="text-2xl font-bold text-gray-900">£{stats.total_revenue.toLocaleString()}</p>
+              <p className="text-xs text-green-600">All time earnings</p>
             </div>
           </div>
         </div>
