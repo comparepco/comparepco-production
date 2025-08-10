@@ -621,7 +621,7 @@ export default function DriverPerformancePage() {
                   <option value="excellent">Excellent (4.5+)</option>
                   <option value="good">Good (4.0-4.4)</option>
                   <option value="average">Average (3.0-3.9)</option>
-                  <option value="poor">Poor (<3.0)</option>
+                  <option value="poor">Poor (&lt;3.0)</option>
                 </select>
               </div>
               
