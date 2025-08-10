@@ -1,30 +1,13 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useMemo } from 'react';
 import { useAuth } from '@/contexts/AuthContext';
 import { createClient } from '@supabase/supabase-js';
 import { 
-  FaCogs, 
-  FaCar, 
-  FaCheckSquare, 
-  FaSquare, 
-  FaDownload, 
-  FaUpload,
-  FaEdit,
-  FaTrash,
-  FaPoundSign,
-  FaToggleOn,
-  FaToggleOff,
-  FaExclamationTriangle,
-  FaCheckCircle,
-  FaClock,
-  FaSearch,
-  FaFilter,
-  FaCog,
-  FaFileExport,
-  FaFileImport,
-  FaSave,
-  FaUndo
+  FaCogs, FaCar, FaCheckSquare, FaSquare, FaDownload, FaUpload, FaEdit, 
+  FaTrash, FaPoundSign, FaToggleOn, FaToggleOff, FaExclamationTriangle, 
+  FaCheckCircle, FaClock, FaSearch, FaFilter, FaCog, FaFileExport, 
+  FaFileImport, FaSave, FaUndo 
 } from 'react-icons/fa';
 
 const supabase = createClient(
@@ -183,16 +166,18 @@ export default function BulkOperations() {
     }
   };
 
-  const filteredVehicles = vehicles.filter(vehicle => {
-    const matchesStatus = selectedStatus === 'all' || vehicle.status === selectedStatus;
-    const matchesMake = selectedMake === 'all' || vehicle.make?.toLowerCase() === selectedMake.toLowerCase();
-    const matchesModel = selectedModel === 'all' || vehicle.model?.toLowerCase() === selectedModel.toLowerCase();
-    const matchesYear = selectedYear === 'all' || vehicle.year?.toString() === selectedYear;
-    const matchesSearch = vehicle.license_plate?.toLowerCase().includes(searchTerm.toLowerCase()) ||
-                         vehicle.make?.toLowerCase().includes(searchTerm.toLowerCase()) ||
-                         vehicle.model?.toLowerCase().includes(searchTerm.toLowerCase());
-    return matchesStatus && matchesMake && matchesModel && matchesYear && matchesSearch;
-  });
+  const filteredVehicles = useMemo(() => {
+    return vehicles.filter(vehicle => {
+      const matchesStatus = selectedStatus === 'all' || vehicle.status === selectedStatus;
+      const matchesMake = selectedMake === 'all' || vehicle.make?.toLowerCase() === selectedMake.toLowerCase();
+      const matchesModel = selectedModel === 'all' || vehicle.model?.toLowerCase() === selectedModel.toLowerCase();
+      const matchesYear = selectedYear === 'all' || vehicle.year?.toString() === selectedYear;
+      const matchesSearch = vehicle.license_plate?.toLowerCase().includes(searchTerm.toLowerCase()) ||
+                           vehicle.make?.toLowerCase().includes(searchTerm.toLowerCase()) ||
+                           vehicle.model?.toLowerCase().includes(searchTerm.toLowerCase());
+      return matchesStatus && matchesMake && matchesModel && matchesYear && matchesSearch;
+    });
+  }, [vehicles, selectedStatus, selectedMake, selectedModel, selectedYear, searchTerm]);
 
   const handleSelectAll = () => {
     if (selectedVehicles.size === filteredVehicles.length) {
@@ -733,38 +718,14 @@ export default function BulkOperations() {
                           className="w-full border border-gray-300 rounded-md px-3 py-2 focus:ring-blue-500 focus:border-blue-500"
                         >
                           <option value="">Select category</option>
-                          {(() => {
-                            // Get categories from selected vehicles
-                            const selectedVehicleData = vehicles.filter(v => selectedVehicles.has(v.id));
-                            const usedCategories = new Set<string>();
-                            
-                            selectedVehicleData.forEach(vehicle => {
-                              if (vehicle.category) {
-                                usedCategories.add(vehicle.category.toLowerCase());
-                              }
-                              if (vehicle.ride_hailing_categories && Array.isArray(vehicle.ride_hailing_categories)) {
-                                vehicle.ride_hailing_categories.forEach(cat => usedCategories.add(cat.toLowerCase()));
-                              }
-                            });
-
-                            // Map to display names
-                            const categoryMap: Record<string, string> = {
-                              'x': 'X (Economy)',
-                              'comfort': 'COMFORT (Standard)',
-                              'business_comfort': 'BUSINESS COMFORT (Premium)',
-                              'exec': 'EXEC (Executive)',
-                              'green': 'GREEN (Electric/Hybrid)',
-                              'lux': 'LUX (Luxury)',
-                              'blacklane': 'BLACKLANE (Premium Black Car)',
-                              'wheely': 'WHEELY (Specialized)'
-                            };
-
-                            return Array.from(usedCategories).map(cat => (
-                              <option key={cat} value={cat}>
-                                {categoryMap[cat] || cat.toUpperCase()}
-                              </option>
-                            ));
-                          })()}
+                          <option value="x">X (Economy)</option>
+                          <option value="comfort">COMFORT (Standard)</option>
+                          <option value="business_comfort">BUSINESS COMFORT (Premium)</option>
+                          <option value="exec">EXEC (Executive)</option>
+                          <option value="green">GREEN (Electric/Hybrid)</option>
+                          <option value="lux">LUX (Luxury)</option>
+                          <option value="blacklane">BLACKLANE (Premium Black Car)</option>
+                          <option value="wheely">WHEELY (Specialized)</option>
                         </select>
                       </div>
                     )}

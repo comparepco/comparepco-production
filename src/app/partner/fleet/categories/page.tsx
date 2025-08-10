@@ -1,31 +1,13 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useMemo } from 'react';
 import { useAuth } from '@/contexts/AuthContext';
 import { createClient } from '@supabase/supabase-js';
 import { 
-  FaTags, 
-  FaCar, 
-  FaPlus, 
-  FaEdit, 
-  FaTrash, 
-  FaEye,
-  FaSearch,
-  FaFilter,
-  FaDownload,
-  FaExclamationTriangle,
-  FaCheckCircle,
-  FaClock,
-  FaPoundSign,
-  FaTachometerAlt,
-  FaStar,
-  FaTimes,
-  FaSave,
-  FaChartLine,
-  FaUsers,
-  FaCalendarAlt,
-  FaInfoCircle,
-  FaSpinner
+  FaTags, FaCar, FaPlus, FaEdit, FaTrash, FaEye, FaSearch, FaFilter, 
+  FaDownload, FaExclamationTriangle, FaCheckCircle, FaClock, FaPoundSign, 
+  FaTachometerAlt, FaStar, FaTimes, FaSave, FaChartLine, FaUsers, 
+  FaCalendarAlt, FaInfoCircle, FaSpinner 
 } from 'react-icons/fa';
 
 const supabase = createClient(
@@ -108,11 +90,22 @@ export default function VehicleCategories() {
     totalRevenue: 0
   });
 
+  // Load data on component mount
   useEffect(() => {
     if (user) {
       loadCategoryData();
     }
   }, [user]);
+
+  // Memoize expensive computations
+  const categoryStats = useMemo(() => {
+    return {
+      totalCategories: categories.length,
+      activeCategories: categories.filter(cat => cat.is_active).length,
+      totalVehicles: vehicles.length,
+      totalRevenue: categories.reduce((sum, cat) => sum + cat.total_revenue, 0)
+    };
+  }, [categories, vehicles]);
 
   const loadCategoryData = async () => {
     try {
@@ -224,10 +217,12 @@ export default function VehicleCategories() {
     }
   };
 
-  const filteredCategories = categories.filter(category =>
-    category.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-    category.description.toLowerCase().includes(searchTerm.toLowerCase())
-  );
+  const filteredCategories = useMemo(() => {
+    return categories.filter(category =>
+      category.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
+      category.description.toLowerCase().includes(searchTerm.toLowerCase())
+    );
+  }, [categories, searchTerm]);
 
   const getCategoryColor = (categoryName: string) => {
     switch (categoryName.toUpperCase()) {
@@ -533,7 +528,7 @@ export default function VehicleCategories() {
               </div>
               <div>
                 <p className="text-sm font-medium text-gray-600">Total Categories</p>
-                <p className="text-2xl font-bold text-gray-900">{stats.totalCategories}</p>
+                <p className="text-2xl font-bold text-gray-900">{categoryStats.totalCategories}</p>
                 <p className="text-xs text-green-600">Vehicle classifications</p>
               </div>
             </div>
@@ -546,7 +541,7 @@ export default function VehicleCategories() {
               </div>
               <div>
                 <p className="text-sm font-medium text-gray-600">Active Categories</p>
-                <p className="text-2xl font-bold text-gray-900">{stats.activeCategories}</p>
+                <p className="text-2xl font-bold text-gray-900">{categoryStats.activeCategories}</p>
                 <p className="text-xs text-green-600">With vehicles assigned</p>
               </div>
             </div>
@@ -559,7 +554,7 @@ export default function VehicleCategories() {
               </div>
               <div>
                 <p className="text-sm font-medium text-gray-600">Total Vehicles</p>
-                <p className="text-2xl font-bold text-gray-900">{stats.totalVehicles}</p>
+                <p className="text-2xl font-bold text-gray-900">{categoryStats.totalVehicles}</p>
                 <p className="text-xs text-green-600">Across all categories</p>
               </div>
             </div>
@@ -572,7 +567,7 @@ export default function VehicleCategories() {
               </div>
               <div>
                 <p className="text-sm font-medium text-gray-600">Total Revenue</p>
-                <p className="text-2xl font-bold text-gray-900">£{stats.totalRevenue.toLocaleString()}</p>
+                <p className="text-2xl font-bold text-gray-900">£{categoryStats.totalRevenue.toLocaleString()}</p>
                 <p className="text-xs text-green-600">Category earnings</p>
               </div>
             </div>
