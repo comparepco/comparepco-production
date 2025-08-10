@@ -1,7 +1,5 @@
 'use client';
 import React, { useState, useEffect, useMemo } from 'react';
-// Add useRef to prevent duplicate fetches in React Strict Mode
-import React, { useRef } from 'react';
 import { useAuth } from '../../../../contexts/AuthContext';
 import { useRouter } from 'next/navigation';
 import { 
