@@ -59,10 +59,10 @@ const navigation = [
     category: 'rentals',
     subItems: [
       { name: 'All Bookings', href: '/partner/bookings', icon: FaCalendarAlt },
-      { name: 'Active Rentals', href: '/partner/bookings?status=active', icon: FaPlay },
-      { name: 'Pending Bookings', href: '/partner/bookings?status=pending', icon: FaClock },
-      { name: 'Completed Rentals', href: '/partner/bookings?status=completed', icon: FaCheckCircle },
-      { name: 'Booking Analytics', href: '/partner/bookings?view=analytics', icon: FaChartLine }
+      { name: 'Active Rentals', href: '/partner/rentals/active', icon: FaPlay },
+      { name: 'Pending Bookings', href: '/partner/rentals/pending', icon: FaClock },
+      { name: 'Completed Rentals', href: '/partner/rentals/completed', icon: FaCheckCircle },
+      { name: 'Booking Analytics', href: '/partner/analytics', icon: FaChartLine }
     ]
   },
 
