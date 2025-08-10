@@ -7,8 +7,7 @@ import {
   FaMoneyBillWave, FaCar, FaDownload, FaChartLine,
   FaCalendarAlt, FaUserCircle, FaFileAlt, FaExclamationTriangle,
   FaUsers, FaCheckCircle, FaTimes, FaRoute, FaSpinner,
-  FaTrophy, FaAward, FaMedal, FaTrendingUp, FaTrendingDown,
-  FaChartBar, FaChartPie, FaArrowUp, FaArrowDown
+  FaTrophy, FaAward, FaMedal, FaArrowUp, FaArrowDown
 } from 'react-icons/fa';
 import { createClient } from '@supabase/supabase-js';
 
