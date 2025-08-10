@@ -12,7 +12,7 @@ const featureIcons: Record<string, React.ReactNode> = {
   Warranty: <FaStar className="inline mr-1 text-purple-500" />,
 };
 
-const categories = ['UberX', 'Comfort', 'Exec', 'Lux', 'Uber Pet', 'Uber Green'];
+const categories = ['X', 'COMFORT', 'BUSINESS COMFORT', 'EXEC', 'GREEN', 'LUX', 'BLACKLANE', 'WHEELY'];
 const fuelTypes = ['Electric', 'Hybrid', 'Petrol', 'Diesel'];
 const carSizes = ['Small', 'Medium', 'Large', 'SUV', 'MPV'];
 const transmissions = ['Automatic', 'Manual'];

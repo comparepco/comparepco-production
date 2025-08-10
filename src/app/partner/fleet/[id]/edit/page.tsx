@@ -10,14 +10,14 @@ import {
 import { supabase } from '../../../../../lib/supabase/client';
 
 const carCategories = [
-  { value: 'economy', label: 'Economy' },
-  { value: 'compact', label: 'Compact' },
-  { value: 'midsize', label: 'Midsize' },
-  { value: 'fullsize', label: 'Full Size' },
-  { value: 'premium', label: 'Premium' },
-  { value: 'luxury', label: 'Luxury' },
-  { value: 'suv', label: 'SUV' },
-  { value: 'van', label: 'Van/MPV' }
+  { value: 'x', label: 'X (Economy)' },
+  { value: 'comfort', label: 'COMFORT (Standard)' },
+  { value: 'business_comfort', label: 'BUSINESS COMFORT (Premium)' },
+  { value: 'exec', label: 'EXEC (Executive)' },
+  { value: 'green', label: 'GREEN (Electric/Hybrid)' },
+  { value: 'lux', label: 'LUX (Luxury)' },
+  { value: 'blacklane', label: 'BLACKLANE (Premium Black Car)' },
+  { value: 'wheely', label: 'WHEELY (Specialized)' }
 ];
 
 const fuelTypes = ['Petrol', 'Diesel', 'Electric', 'Hybrid'];

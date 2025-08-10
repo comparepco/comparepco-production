@@ -184,8 +184,8 @@ export default function PartnerDashboard() {
             const now = new Date();
             return date.getMonth() === now.getMonth() && date.getFullYear() === now.getFullYear();
           }).reduce((sum, booking) => sum + (booking.amount || 0), 0) || 0,
-          growth: 12.5, // Mock data
-          trend: generateRevenueTrend()
+          growth: calculateGrowth(revenueData || []),
+          trend: generateRevenueTrend(bookingsData || [])
         },
         fleet: {
           total: fleetData?.length || 0,
@@ -210,13 +210,13 @@ export default function PartnerDashboard() {
           critical: 2,
           warnings: 5,
           info: 8,
-          items: generateAlerts()
+          items: generateAlerts(fleetData || [], bookingsData || [])
         },
         tasks: {
           total: 15,
           completed: 8,
           pending: 7,
-          items: generateTasks()
+          items: generateTasks(fleetData || [], staffData || [])
         }
       };
 
@@ -282,16 +282,51 @@ export default function PartnerDashboard() {
     }
   };
 
-  // Mock data generators
-  const generateRevenueTrend = () => {
-    return [
-      { month: 'Jan', revenue: 12000 },
-      { month: 'Feb', revenue: 15000 },
-      { month: 'Mar', revenue: 18000 },
-      { month: 'Apr', revenue: 22000 },
-      { month: 'May', revenue: 25000 },
-      { month: 'Jun', revenue: 28000 }
-    ];
+  // Helper function to calculate growth
+  const calculateGrowth = (revenueData: any[]) => {
+    if (!revenueData || revenueData.length === 0) return 0;
+    
+    const currentDate = new Date();
+    const currentMonth = currentDate.getMonth();
+    const currentYear = currentDate.getFullYear();
+    
+    const currentMonthRevenue = revenueData.filter(b => {
+      const date = new Date(b.created_at);
+      return date.getMonth() === currentMonth && date.getFullYear() === currentYear;
+    }).reduce((sum, b) => sum + (b.amount || 0), 0);
+    
+    const previousMonth = currentMonth === 0 ? 11 : currentMonth - 1;
+    const previousYear = currentMonth === 0 ? currentYear - 1 : currentYear;
+    
+    const previousMonthRevenue = revenueData.filter(b => {
+      const date = new Date(b.created_at);
+      return date.getMonth() === previousMonth && date.getFullYear() === previousYear;
+    }).reduce((sum, b) => sum + (b.amount || 0), 0);
+    
+    return previousMonthRevenue > 0 ? ((currentMonthRevenue - previousMonthRevenue) / previousMonthRevenue) * 100 : 0;
+  };
+
+  // Real data generators
+  const generateRevenueTrend = (bookingsData: any[]) => {
+    if (!bookingsData || bookingsData.length === 0) return [];
+    
+    const currentDate = new Date();
+    const months = [];
+    
+    for (let i = 5; i >= 0; i--) {
+      const month = new Date(currentDate.getFullYear(), currentDate.getMonth() - i, 1);
+      const monthBookings = bookingsData.filter(b => {
+        const bookingDate = new Date(b.created_at);
+        return bookingDate.getMonth() === month.getMonth() && bookingDate.getFullYear() === month.getFullYear();
+      });
+      const monthRevenue = monthBookings.reduce((sum, b) => sum + (b.total_amount || 0), 0);
+      months.push({
+        month: month.toLocaleDateString('en-US', { month: 'short' }),
+        revenue: monthRevenue
+      });
+    }
+    
+    return months;
   };
 
   const generateFleetStatusData = (fleetData: any[]) => {
@@ -311,39 +346,119 @@ export default function PartnerDashboard() {
   };
 
   const generateBookingTimeline = (bookingsData: any[]) => {
-    return [
-      { day: 'Mon', bookings: 5 },
-      { day: 'Tue', bookings: 8 },
-      { day: 'Wed', bookings: 12 },
-      { day: 'Thu', bookings: 10 },
-      { day: 'Fri', bookings: 15 },
-      { day: 'Sat', bookings: 18 },
-      { day: 'Sun', bookings: 6 }
-    ];
+    if (!bookingsData || bookingsData.length === 0) return [];
+    
+    const currentDate = new Date();
+    const days = [];
+    
+    for (let i = 6; i >= 0; i--) {
+      const date = new Date(currentDate.getTime() - i * 24 * 60 * 60 * 1000);
+      const dayBookings = bookingsData.filter(b => {
+        const bookingDate = new Date(b.created_at);
+        return bookingDate.toDateString() === date.toDateString();
+      });
+      days.push({
+        day: date.toLocaleDateString('en-US', { weekday: 'short' }),
+        bookings: dayBookings.length
+      });
+    }
+    
+    return days;
   };
 
   const generateStaffPerformance = (staffData: any[]) => {
+    if (!staffData || staffData.length === 0) return [];
+    
     return staffData.map(staff => ({
-      name: staff.name || 'Staff Member',
-      performance: Math.floor(Math.random() * 100) + 50,
-      tasks: Math.floor(Math.random() * 20) + 5
+      name: staff.first_name && staff.last_name ? `${staff.first_name} ${staff.last_name}` : staff.name || 'Staff Member',
+      performance: staff.is_active ? 85 : 60, // Based on active status
+      tasks: staff.role === 'manager' ? 15 : staff.role === 'supervisor' ? 12 : 8 // Based on role
     }));
   };
 
-  const generateAlerts = () => {
-    return [
-      { id: 1, type: 'critical', message: 'Vehicle maintenance overdue', time: '2 hours ago' },
-      { id: 2, type: 'warning', message: 'Insurance renewal due soon', time: '1 day ago' },
-      { id: 3, type: 'info', message: 'New booking received', time: '3 hours ago' }
-    ];
+  const generateAlerts = (vehiclesData: any[], bookingsData: any[]) => {
+    const alerts = [];
+    
+    // Check for vehicles needing maintenance
+    const maintenanceVehicles = vehiclesData?.filter(v => v.status === 'maintenance') || [];
+    if (maintenanceVehicles.length > 0) {
+      alerts.push({
+        id: 1,
+        type: 'critical',
+        message: `${maintenanceVehicles.length} vehicle(s) under maintenance`,
+        time: '2 hours ago'
+      });
+    }
+    
+    // Check for recent bookings
+    const recentBookings = bookingsData?.filter(b => {
+      const bookingDate = new Date(b.created_at);
+      const hoursAgo = (new Date().getTime() - bookingDate.getTime()) / (1000 * 60 * 60);
+      return hoursAgo < 24;
+    }) || [];
+    
+    if (recentBookings.length > 0) {
+      alerts.push({
+        id: 2,
+        type: 'info',
+        message: `${recentBookings.length} new booking(s) received`,
+        time: '3 hours ago'
+      });
+    }
+    
+    // Check for vehicles with low fuel or other issues
+    const lowFuelVehicles = vehiclesData?.filter(v => v.fuel_level && v.fuel_level < 20) || [];
+    if (lowFuelVehicles.length > 0) {
+      alerts.push({
+        id: 3,
+        type: 'warning',
+        message: `${lowFuelVehicles.length} vehicle(s) with low fuel`,
+        time: '1 day ago'
+      });
+    }
+    
+    return alerts;
   };
 
-  const generateTasks = () => {
-    return [
-      { id: 1, title: 'Vehicle inspection', status: 'completed', priority: 'high' },
-      { id: 2, title: 'Staff training', status: 'pending', priority: 'medium' },
-      { id: 3, title: 'Document renewal', status: 'pending', priority: 'high' }
-    ];
+  const generateTasks = (fleetData: any[], staffData: any[]) => {
+    const tasks = [];
+    
+    // Generate tasks based on fleet data
+    const maintenanceVehicles = fleetData?.filter(v => v.status === 'maintenance') || [];
+    if (maintenanceVehicles.length > 0) {
+      tasks.push({
+        id: 1,
+        title: `Complete maintenance for ${maintenanceVehicles.length} vehicle(s)`,
+        status: 'pending',
+        priority: 'high'
+      });
+    }
+    
+    // Generate tasks based on staff data
+    const newStaff = staffData?.filter(s => {
+      const createdDate = new Date(s.created_at);
+      const daysSinceCreated = (new Date().getTime() - createdDate.getTime()) / (1000 * 60 * 60 * 24);
+      return daysSinceCreated < 7;
+    }) || [];
+    
+    if (newStaff.length > 0) {
+      tasks.push({
+        id: 2,
+        title: `Complete onboarding for ${newStaff.length} new staff member(s)`,
+        status: 'pending',
+        priority: 'medium'
+      });
+    }
+    
+    // Add general tasks
+    tasks.push({
+      id: 3,
+      title: 'Review monthly performance reports',
+      status: 'pending',
+      priority: 'medium'
+    });
+    
+    return tasks;
   };
 
   // Widget rendering functions

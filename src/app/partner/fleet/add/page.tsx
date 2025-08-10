@@ -6,20 +6,20 @@ import Link from 'next/link';
 import { 
   FaCar, FaArrowLeft, FaSave, FaTimes, FaUpload, FaTrash,
   FaCog, FaShieldAlt, FaFileAlt, FaCloudUploadAlt, FaMoneyBillWave,
-  FaCheckCircle
+  FaCheckCircle, FaTags, FaInfoCircle
 } from 'react-icons/fa';
 import { supabase } from '@/lib/supabase/client';
 import toast from 'react-hot-toast';
 
 const carCategories = [
-  { value: 'economy', label: 'Economy' },
-  { value: 'compact', label: 'Compact' },
-  { value: 'midsize', label: 'Midsize' },
-  { value: 'fullsize', label: 'Full Size' },
-  { value: 'premium', label: 'Premium' },
-  { value: 'luxury', label: 'Luxury' },
-  { value: 'suv', label: 'SUV' },
-  { value: 'van', label: 'Van/MPV' }
+  { value: 'x', label: 'X (Economy)' },
+  { value: 'comfort', label: 'COMFORT (Standard)' },
+  { value: 'business_comfort', label: 'BUSINESS COMFORT (Premium)' },
+  { value: 'exec', label: 'EXEC (Executive)' },
+  { value: 'green', label: 'GREEN (Electric/Hybrid)' },
+  { value: 'lux', label: 'LUX (Luxury)' },
+  { value: 'blacklane', label: 'BLACKLANE (Premium Black Car)' },
+  { value: 'wheely', label: 'WHEELY (Specialized)' }
 ];
 
 const fuelTypes = ['Petrol', 'Diesel', 'Electric', 'Hybrid'];
@@ -74,7 +74,7 @@ export default function AddVehiclePage() {
     model: '',
     year: new Date().getFullYear(),
     license_plate: '',
-    category: 'economy',
+    category: 'comfort', // Keep for backward compatibility
     fuel_type: 'Petrol',
     transmission: 'Manual',
     mileage: 0,
@@ -104,7 +104,7 @@ export default function AddVehiclePage() {
       deposit_notes: '',
       tier_rates: {} as { [key: number]: number }
     },
-    ride_hailing_categories: [] as string[]
+    ride_hailing_categories: ['comfort'] as string[] // Default to COMFORT
   });
 
   const [vehicleDocuments, setVehicleDocuments] = useState<{
@@ -184,6 +184,34 @@ export default function AddVehiclePage() {
         ? prev.features.filter(f => f !== feature)
         : [...prev.features, feature]
     }));
+  };
+
+  const handleCategoryToggle = (category: string) => {
+    setVehicleData(prev => {
+      const currentCategories = prev.ride_hailing_categories;
+      
+      if (currentCategories.includes(category)) {
+        // Remove category if already selected
+        return {
+          ...prev,
+          ride_hailing_categories: currentCategories.filter(c => c !== category)
+        };
+      } else {
+        // Add category if not already selected (max 3)
+        if (currentCategories.length < 3) {
+          return {
+            ...prev,
+            ride_hailing_categories: [...currentCategories, category]
+          };
+        }
+        // If already 3 selected, replace the last one
+        const newCategories = [...currentCategories.slice(0, 2), category];
+        return {
+          ...prev,
+          ride_hailing_categories: newCategories
+        };
+      }
+    });
   };
 
   const handleDocumentUpload = async (key: string, file: File | null) => {
@@ -481,40 +509,45 @@ export default function AddVehiclePage() {
         </div>
       </div>
 
-      <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+      <div className="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
         <form onSubmit={handleSubmit} className="space-y-8">
           {/* Vehicle Photos */}
-          <div className="bg-white/80 backdrop-blur-sm rounded-xl shadow-lg border border-gray-200 p-6">
-            <h2 className="text-lg font-semibold text-gray-900 mb-4 flex items-center gap-2">
-              <FaCloudUploadAlt className="text-blue-600" />
+          <div className="bg-gradient-to-br from-white to-blue-50/30 backdrop-blur-sm rounded-2xl shadow-xl border border-blue-100 p-8">
+            <h2 className="text-xl font-bold text-gray-900 mb-6 flex items-center gap-3">
+              <div className="bg-blue-500 p-2 rounded-lg">
+                <FaCloudUploadAlt className="text-white text-lg" />
+              </div>
               Vehicle Photos
             </h2>
             
-            <div className="space-y-4">
-              <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4">
+            <div className="space-y-6">
+              <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-6">
                 {/* Image Previews */}
                 {imagePreviews.map((preview, index) => (
-                  <div key={index} className="relative">
+                  <div key={index} className="relative group">
                     <img
                       src={preview}
                       alt={`Preview ${index + 1}`}
-                      className="w-full h-32 object-cover rounded-lg border border-gray-200"
+                      className="w-full h-40 object-cover rounded-xl border-2 border-gray-200 shadow-md group-hover:shadow-lg transition-all duration-200"
                     />
                     <button
                       type="button"
                       onClick={() => removeImage(index)}
-                      className="absolute top-2 right-2 bg-red-600 text-white p-1 rounded-full hover:bg-red-700 transition-colors"
+                      className="absolute top-3 right-3 bg-red-500 text-white p-2 rounded-full hover:bg-red-600 transition-all duration-200 shadow-lg hover:shadow-xl"
                     >
-                      <FaTimes className="w-3 h-3" />
+                      <FaTimes className="w-4 h-4" />
                     </button>
                   </div>
                 ))}
                 
                 {/* Add Photo Button */}
                 {imageFiles.length < 10 && (
-                  <label className="flex flex-col items-center justify-center w-full h-32 border-2 border-gray-300 border-dashed rounded-lg cursor-pointer bg-gray-50 hover:bg-gray-100 transition-colors">
-                    <FaUpload className="text-gray-400 text-xl mb-2" />
-                    <span className="text-sm text-gray-500">Add Photo</span>
+                  <label className="flex flex-col items-center justify-center w-full h-40 border-2 border-dashed border-blue-300 rounded-xl cursor-pointer bg-gradient-to-br from-blue-50 to-blue-100/50 hover:from-blue-100 hover:to-blue-200/50 transition-all duration-200 group">
+                    <div className="bg-blue-500 p-3 rounded-full mb-3 group-hover:bg-blue-600 transition-colors">
+                      <FaUpload className="text-white text-xl" />
+                    </div>
+                    <span className="text-sm font-medium text-blue-700">Add Photo</span>
+                    <span className="text-xs text-blue-600 mt-1">Click to upload</span>
                     <input
                       type="file"
                       multiple
@@ -525,106 +558,140 @@ export default function AddVehiclePage() {
                   </label>
                 )}
               </div>
-              <p className="text-sm text-gray-500">
-                Upload up to 10 photos total. Supported formats: JPG, PNG (Max 10MB each)
-              </p>
+              <div className="bg-blue-50 rounded-lg p-4 border border-blue-200">
+                <p className="text-sm text-blue-800 flex items-center gap-2">
+                  <FaInfoCircle className="text-blue-600" />
+                  Upload up to 10 photos total. Supported formats: JPG, PNG (Max 10MB each)
+                </p>
+              </div>
             </div>
           </div>
 
           {/* Basic Information */}
-          <div className="bg-white/80 backdrop-blur-sm rounded-xl shadow-lg border border-gray-200 p-6">
-            <h2 className="text-lg font-semibold text-gray-900 mb-4 flex items-center gap-2">
-              <FaCar className="text-blue-600" />
+          <div className="bg-gradient-to-br from-white to-green-50/30 backdrop-blur-sm rounded-2xl shadow-xl border border-green-100 p-8">
+            <h2 className="text-xl font-bold text-gray-900 mb-6 flex items-center gap-3">
+              <div className="bg-green-500 p-2 rounded-lg">
+                <FaCar className="text-white text-lg" />
+              </div>
               Basic Information
             </h2>
             
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">Vehicle Name *</label>
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+              <div className="space-y-2">
+                <label className="block text-sm font-semibold text-gray-700">Vehicle Name *</label>
                 <input
                   type="text"
                   value={vehicleData.name}
                   onChange={(e) => setVehicleData(prev => ({ ...prev, name: e.target.value }))}
-                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 text-black"
+                  className="w-full px-4 py-3 border-2 border-gray-200 rounded-xl focus:ring-2 focus:ring-green-500 focus:border-green-500 text-gray-900 transition-all duration-200 bg-white/80 backdrop-blur-sm"
                   placeholder="e.g., BMW 3 Series 2020"
                   required
                 />
               </div>
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">License Plate *</label>
+              <div className="space-y-2">
+                <label className="block text-sm font-semibold text-gray-700">License Plate *</label>
                 <input
                   type="text"
                   value={vehicleData.license_plate}
                   onChange={(e) => setVehicleData(prev => ({ ...prev, license_plate: e.target.value.toUpperCase() }))}
-                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 text-black"
+                  className="w-full px-4 py-3 border-2 border-gray-200 rounded-xl focus:ring-2 focus:ring-green-500 focus:border-green-500 text-gray-900 transition-all duration-200 bg-white/80 backdrop-blur-sm font-mono"
                   placeholder="AB12 CDE"
                   required
                 />
               </div>
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">Make *</label>
+              <div className="space-y-2">
+                <label className="block text-sm font-semibold text-gray-700">Make *</label>
                 <input
                   type="text"
                   value={vehicleData.make}
                   onChange={(e) => setVehicleData(prev => ({ ...prev, make: e.target.value }))}
-                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 text-black"
+                  className="w-full px-4 py-3 border-2 border-gray-200 rounded-xl focus:ring-2 focus:ring-green-500 focus:border-green-500 text-gray-900 transition-all duration-200 bg-white/80 backdrop-blur-sm"
                   placeholder="e.g., BMW"
                   required
                 />
               </div>
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">Model *</label>
+              <div className="space-y-2">
+                <label className="block text-sm font-semibold text-gray-700">Model *</label>
                 <input
                   type="text"
                   value={vehicleData.model}
                   onChange={(e) => setVehicleData(prev => ({ ...prev, model: e.target.value }))}
-                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 text-black"
+                  className="w-full px-4 py-3 border-2 border-gray-200 rounded-xl focus:ring-2 focus:ring-green-500 focus:border-green-500 text-gray-900 transition-all duration-200 bg-white/80 backdrop-blur-sm"
                   placeholder="e.g., 3 Series"
                   required
                 />
               </div>
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">Year *</label>
+              <div className="space-y-2">
+                <label className="block text-sm font-semibold text-gray-700">Year *</label>
                 <input
                   type="number"
                   value={vehicleData.year}
                   onChange={(e) => setVehicleData(prev => ({ ...prev, year: parseInt(e.target.value) || 2020 }))}
-                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 text-black"
+                  className="w-full px-4 py-3 border-2 border-gray-200 rounded-xl focus:ring-2 focus:ring-green-500 focus:border-green-500 text-gray-900 transition-all duration-200 bg-white/80 backdrop-blur-sm"
                   min="1990"
                   max={new Date().getFullYear() + 1}
                   required
                 />
               </div>
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">Category *</label>
-                <select
-                  value={vehicleData.category}
-                  onChange={(e) => setVehicleData(prev => ({ ...prev, category: e.target.value }))}
-                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 text-black"
-                  required
-                >
-                  {carCategories.map(category => (
-                    <option key={category.value} value={category.value}>{category.label}</option>
-                  ))}
-                </select>
+            </div>
+          </div>
+
+          {/* Vehicle Categories */}
+          <div className="bg-gradient-to-br from-white to-purple-50/30 backdrop-blur-sm rounded-2xl shadow-xl border border-purple-100 p-8">
+            <h2 className="text-xl font-bold text-gray-900 mb-6 flex items-center gap-3">
+              <div className="bg-purple-500 p-2 rounded-lg">
+                <FaTags className="text-white text-lg" />
+              </div>
+              Vehicle Categories
+            </h2>
+            
+            <div className="space-y-4">
+              <label className="block text-sm font-semibold text-gray-700">
+                Select Categories * (Select up to 3)
+              </label>
+              <div className="flex flex-wrap gap-3">
+                {carCategories.map(category => (
+                  <button
+                    key={category.value}
+                    type="button"
+                    onClick={() => handleCategoryToggle(category.value)}
+                    className={`p-4 rounded-xl border-2 transition-all duration-200 shadow-md hover:shadow-lg ${
+                      vehicleData.ride_hailing_categories.includes(category.value)
+                        ? 'bg-gradient-to-r from-purple-500 to-purple-600 text-white border-purple-500 shadow-lg'
+                        : 'bg-white text-gray-700 border-gray-200 hover:border-purple-300 hover:bg-purple-50'
+                    }`}
+                  >
+                    <div className="font-bold text-base">{category.label.split(' (')[0]}</div>
+                    <div className={`text-xs mt-1 ${vehicleData.ride_hailing_categories.includes(category.value) ? 'text-purple-100' : 'text-gray-500'}`}>
+                      ({category.label.split(' (')[1]?.replace(')', '')})
+                    </div>
+                  </button>
+                ))}
+              </div>
+              <div className="bg-purple-50 rounded-lg p-3 border border-purple-200">
+                <p className="text-sm text-purple-800 font-medium">
+                  Selected: {vehicleData.ride_hailing_categories.length}/3
+                </p>
               </div>
             </div>
           </div>
 
           {/* Specifications */}
-          <div className="bg-white/80 backdrop-blur-sm rounded-xl shadow-lg border border-gray-200 p-6">
-            <h2 className="text-lg font-semibold text-gray-900 mb-4 flex items-center gap-2">
-              <FaCog className="text-blue-600" />
+          <div className="bg-gradient-to-br from-white to-orange-50/30 backdrop-blur-sm rounded-2xl shadow-xl border border-orange-100 p-8">
+            <h2 className="text-xl font-bold text-gray-900 mb-6 flex items-center gap-3">
+              <div className="bg-orange-500 p-2 rounded-lg">
+                <FaCog className="text-white text-lg" />
+              </div>
               Specifications
             </h2>
             
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">Fuel Type *</label>
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+              <div className="space-y-2">
+                <label className="block text-sm font-semibold text-gray-700">Fuel Type *</label>
                 <select
                   value={vehicleData.fuel_type}
                   onChange={(e) => setVehicleData(prev => ({ ...prev, fuel_type: e.target.value }))}
-                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 text-black"
+                  className="w-full px-4 py-3 border-2 border-gray-200 rounded-xl focus:ring-2 focus:ring-orange-500 focus:border-orange-500 text-gray-900 transition-all duration-200 bg-white/80 backdrop-blur-sm"
                   required
                 >
                   {fuelTypes.map(fuel => (
@@ -632,12 +699,12 @@ export default function AddVehiclePage() {
                   ))}
                 </select>
               </div>
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">Transmission *</label>
+              <div className="space-y-2">
+                <label className="block text-sm font-semibold text-gray-700">Transmission *</label>
                 <select
                   value={vehicleData.transmission}
                   onChange={(e) => setVehicleData(prev => ({ ...prev, transmission: e.target.value }))}
-                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 text-black"
+                  className="w-full px-4 py-3 border-2 border-gray-200 rounded-xl focus:ring-2 focus:ring-orange-500 focus:border-orange-500 text-gray-900 transition-all duration-200 bg-white/80 backdrop-blur-sm"
                   required
                 >
                   {transmissionTypes.map(trans => (
@@ -645,70 +712,111 @@ export default function AddVehiclePage() {
                   ))}
                 </select>
               </div>
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">Seats *</label>
+              <div className="space-y-2">
+                <label className="block text-sm font-semibold text-gray-700">Seats *</label>
                 <input
                   type="number"
                   value={vehicleData.seats}
                   onChange={(e) => setVehicleData(prev => ({ ...prev, seats: parseInt(e.target.value) || 5 }))}
-                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 text-black"
+                  className="w-full px-4 py-3 border-2 border-gray-200 rounded-xl focus:ring-2 focus:ring-orange-500 focus:border-orange-500 text-gray-900 transition-all duration-200 bg-white/80 backdrop-blur-sm"
                   min="2"
                   max="9"
                   required
                 />
               </div>
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">Doors *</label>
+              <div className="space-y-2">
+                <label className="block text-sm font-semibold text-gray-700">Doors *</label>
                 <input
                   type="number"
                   value={vehicleData.doors}
                   onChange={(e) => setVehicleData(prev => ({ ...prev, doors: parseInt(e.target.value) || 4 }))}
-                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 text-black"
+                  className="w-full px-4 py-3 border-2 border-gray-200 rounded-xl focus:ring-2 focus:ring-orange-500 focus:border-orange-500 text-gray-900 transition-all duration-200 bg-white/80 backdrop-blur-sm"
                   min="2"
                   max="5"
                   required
                 />
               </div>
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">Engine</label>
+              <div className="space-y-2">
+                <label className="block text-sm font-semibold text-gray-700">Engine</label>
                 <input
                   type="text"
                   value={vehicleData.engine}
                   onChange={(e) => setVehicleData(prev => ({ ...prev, engine: e.target.value }))}
-                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 text-black"
+                  className="w-full px-4 py-3 border-2 border-gray-200 rounded-xl focus:ring-2 focus:ring-orange-500 focus:border-orange-500 text-gray-900 transition-all duration-200 bg-white/80 backdrop-blur-sm"
                   placeholder="e.g., 2.0L Turbo"
                 />
               </div>
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">Color</label>
+              <div className="space-y-2">
+                <label className="block text-sm font-semibold text-gray-700">Color</label>
                 <input
                   type="text"
                   value={vehicleData.color}
                   onChange={(e) => setVehicleData(prev => ({ ...prev, color: e.target.value }))}
-                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 text-black"
+                  className="w-full px-4 py-3 border-2 border-gray-200 rounded-xl focus:ring-2 focus:ring-orange-500 focus:border-orange-500 text-gray-900 transition-all duration-200 bg-white/80 backdrop-blur-sm"
                   placeholder="e.g., Black"
                 />
               </div>
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">Mileage</label>
+              <div className="space-y-2">
+                <label className="block text-sm font-semibold text-gray-700">Mileage</label>
                 <input
                   type="number"
                   value={vehicleData.mileage}
                   onChange={(e) => setVehicleData(prev => ({ ...prev, mileage: parseInt(e.target.value) || 0 }))}
-                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 text-black"
+                  className="w-full px-4 py-3 border-2 border-gray-200 rounded-xl focus:ring-2 focus:ring-orange-500 focus:border-orange-500 text-gray-900 transition-all duration-200 bg-white/80 backdrop-blur-sm"
                   min="0"
                   placeholder="Current mileage"
                 />
               </div>
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">Location</label>
+              <div className="space-y-2">
+                <label className="block text-sm font-semibold text-gray-700">Location</label>
                 <input
                   type="text"
                   value={vehicleData.location}
                   onChange={(e) => setVehicleData(prev => ({ ...prev, location: e.target.value }))}
-                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 text-black"
+                  className="w-full px-4 py-3 border-2 border-gray-200 rounded-xl focus:ring-2 focus:ring-orange-500 focus:border-orange-500 text-gray-900 transition-all duration-200 bg-white/80 backdrop-blur-sm"
                   placeholder="e.g., London, Central"
                 />
+              </div>
+            </div>
+          </div>
+
+          {/* Pricing */}
+          <div className="bg-gradient-to-br from-white to-emerald-50/30 backdrop-blur-sm rounded-2xl shadow-xl border border-emerald-100 p-8">
+            <h2 className="text-xl font-bold text-gray-900 mb-6 flex items-center gap-3">
+              <div className="bg-emerald-500 p-2 rounded-lg">
+                <FaMoneyBillWave className="text-white text-lg" />
+              </div>
+              Pricing
+            </h2>
+            
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+              <div className="space-y-2">
+                <label className="block text-sm font-semibold text-gray-700">Weekly Rate (£) *</label>
+                <div className="relative">
+                  <span className="absolute left-4 top-1/2 transform -translate-y-1/2 text-gray-500 font-medium">£</span>
+                  <input
+                    type="number"
+                    value={vehicleData.price_per_week}
+                    onChange={(e) => setVehicleData(prev => ({ ...prev, price_per_week: parseInt(e.target.value) || 0 }))}
+                    className="w-full pl-8 pr-4 py-3 border-2 border-gray-200 rounded-xl focus:ring-2 focus:ring-emerald-500 focus:border-emerald-500 text-gray-900 transition-all duration-200 bg-white/80 backdrop-blur-sm"
+                    min="0"
+                    required
+                  />
+                </div>
+              </div>
+              <div className="space-y-2">
+                <label className="block text-sm font-semibold text-gray-700">Daily Rate (£) *</label>
+                <div className="relative">
+                  <span className="absolute left-4 top-1/2 transform -translate-y-1/2 text-gray-500 font-medium">£</span>
+                  <input
+                    type="number"
+                    value={vehicleData.price_per_day}
+                    onChange={(e) => setVehicleData(prev => ({ ...prev, price_per_day: parseInt(e.target.value) || 0 }))}
+                    className="w-full pl-8 pr-4 py-3 border-2 border-gray-200 rounded-xl focus:ring-2 focus:ring-emerald-500 focus:border-emerald-500 text-gray-900 transition-all duration-200 bg-white/80 backdrop-blur-sm"
+                    min="0"
+                    required
+                  />
+                </div>
               </div>
             </div>
           </div>
@@ -828,82 +936,68 @@ export default function AddVehiclePage() {
           </div>
 
           {/* Insurance */}
-          <div className="bg-white/80 backdrop-blur-sm rounded-xl shadow-lg border border-gray-200 p-6">
-            <h2 className="text-lg font-semibold text-gray-900 mb-4 flex items-center gap-2">
-              <FaShieldAlt className="text-blue-600" />
+          <div className="bg-gradient-to-br from-white to-indigo-50/30 backdrop-blur-sm rounded-2xl shadow-xl border border-indigo-100 p-8">
+            <h2 className="text-xl font-bold text-gray-900 mb-6 flex items-center gap-3">
+              <div className="bg-indigo-500 p-2 rounded-lg">
+                <FaShieldAlt className="text-white text-lg" />
+              </div>
               Insurance
             </h2>
             
-            <div className="space-y-4">
-              <div>
-                <label className="flex items-center">
-                  <input
-                    type="checkbox"
-                    checked={vehicleData.insurance_included}
-                    onChange={(e) => setVehicleData(prev => ({ 
-                      ...prev, 
-                      insurance_included: e.target.checked 
-                    }))}
-                    className="rounded border-gray-300 text-blue-600 focus:ring-blue-500"
-                  />
-                  <span className="ml-2 text-sm font-medium text-gray-700">
-                    This vehicle comes with insurance included
-                  </span>
-                </label>
-                <p className="text-xs text-gray-500 mt-1">
-                  If unchecked, drivers will need to provide their own insurance
-                </p>
+            <div className="space-y-6">
+              <div className="flex items-center p-4 bg-indigo-50 rounded-xl border border-indigo-200">
+                <input
+                  type="checkbox"
+                  checked={vehicleData.insurance_included}
+                  onChange={(e) => setVehicleData(prev => ({ ...prev, insurance_included: e.target.checked }))}
+                  className="mr-3 w-5 h-5 rounded border-gray-300 text-indigo-600 focus:ring-indigo-500"
+                />
+                <span className="text-sm font-semibold text-gray-700">Insurance Included in Rental</span>
               </div>
-
+              
               {vehicleData.insurance_included && (
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-4 p-4 bg-blue-50 rounded-lg">
-                  <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-1">Coverage Type</label>
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                  <div className="space-y-2">
+                    <label className="block text-sm font-semibold text-gray-700">Coverage Type</label>
                     <input
                       type="text"
                       value={vehicleData.insurance_details.coverage}
-                      onChange={(e) => setVehicleData(prev => ({ 
-                        ...prev, 
-                        insurance_details: { 
-                          ...prev.insurance_details, 
-                          coverage: e.target.value 
-                        } 
+                      onChange={(e) => setVehicleData(prev => ({
+                        ...prev,
+                        insurance_details: { ...prev.insurance_details, coverage: e.target.value }
                       }))}
-                      className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 text-black"
-                      placeholder="e.g., Comprehensive, Third Party"
+                      className="w-full px-4 py-3 border-2 border-gray-200 rounded-xl focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 text-gray-900 transition-all duration-200 bg-white/80 backdrop-blur-sm"
+                      placeholder="e.g., Comprehensive"
                     />
                   </div>
-                  <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-1">Excess Amount (£)</label>
-                    <input
-                      type="number"
-                      value={vehicleData.insurance_details.excess}
-                      onChange={(e) => setVehicleData(prev => ({ 
-                        ...prev, 
-                        insurance_details: { 
-                          ...prev.insurance_details, 
-                          excess: parseInt(e.target.value) || 0 
-                        } 
-                      }))}
-                      className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 text-black"
-                      min="0"
-                      placeholder="0"
-                    />
+                  <div className="space-y-2">
+                    <label className="block text-sm font-semibold text-gray-700">Excess Amount (£)</label>
+                    <div className="relative">
+                      <span className="absolute left-4 top-1/2 transform -translate-y-1/2 text-gray-500 font-medium">£</span>
+                      <input
+                        type="number"
+                        value={vehicleData.insurance_details.excess}
+                        onChange={(e) => setVehicleData(prev => ({
+                          ...prev,
+                          insurance_details: { ...prev.insurance_details, excess: parseInt(e.target.value) || 0 }
+                        }))}
+                        className="w-full pl-8 pr-4 py-3 border-2 border-gray-200 rounded-xl focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 text-gray-900 transition-all duration-200 bg-white/80 backdrop-blur-sm"
+                        min="0"
+                        placeholder="0"
+                      />
+                    </div>
                   </div>
-                  <div className="md:col-span-2">
-                    <label className="block text-sm font-medium text-gray-700 mb-1">Insurance Terms</label>
+                  <div className="md:col-span-2 space-y-2">
+                    <label className="block text-sm font-semibold text-gray-700">Insurance Terms</label>
                     <textarea
                       value={vehicleData.insurance_details.terms}
-                      onChange={(e) => setVehicleData(prev => ({ 
-                        ...prev, 
-                        insurance_details: { 
-                          ...prev.insurance_details, 
-                          terms: e.target.value 
-                        } 
+                      onChange={(e) => setVehicleData(prev => ({
+                        ...prev,
+                        insurance_details: { ...prev.insurance_details, terms: e.target.value }
                       }))}
+                      className="w-full px-4 py-3 border-2 border-gray-200 rounded-xl focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 text-gray-900 transition-all duration-200 bg-white/80 backdrop-blur-sm"
                       rows={3}
-                      className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 text-black"
-                      placeholder="Any specific terms or conditions for the insurance coverage..."
+                      placeholder="Enter insurance terms and conditions..."
                     />
                   </div>
                 </div>

@@ -116,6 +116,17 @@ export default function FleetPage() {
   const [itemsPerPage] = useState(10);
   const [showDocumentModal, setShowDocumentModal] = useState(false);
   const [showBulkActions, setShowBulkActions] = useState(false);
+  const [stats, setStats] = useState({
+    total: 0,
+    available: 0,
+    booked: 0,
+    maintenance: 0,
+    totalRevenue: 0,
+    totalBookings: 0,
+    avgRating: '0.0',
+    pendingDocs: 0,
+    expiringSoon: 0
+  });
 
   useEffect(() => {
     if (!authLoading) {
@@ -145,9 +156,18 @@ export default function FleetPage() {
         .from('vehicles')
         .select('*')
         .eq('partner_id', partnerId)
+        .eq('is_active', true)
         .order('created_at', { ascending: false });
 
       if (vehiclesError) throw vehiclesError;
+
+      // Load vehicle categories
+      const { data: categoriesData, error: categoriesError } = await supabase
+        .from('vehicle_categories')
+        .select('*')
+        .eq('partner_id', partnerId);
+
+      if (categoriesError) throw categoriesError;
 
       // Load bookings for status calculation
       const { data: bookingsData, error: bookingsError } = await supabase
@@ -209,12 +229,11 @@ export default function FleetPage() {
 
       // Process vehicles with status and revenue
       const processedVehicles = vehiclesData?.map(vehicle => {
-        const needsApproval = false; // document_verification_status not in schema
         const relevantBookings = bookingsByVehicle[vehicle.id] || [];
         const totalRevenue = revenueByVehicle[vehicle.id] || 0;
         const totalBookings = bookingsByVehicleForRevenue[vehicle.id] || 0;
         
-        let status = vehicle.status;
+        let status = vehicle.status || 'available';
         if (relevantBookings.length > 0) {
           status = 'booked';
         }
@@ -229,6 +248,52 @@ export default function FleetPage() {
 
       setVehicles(processedVehicles);
       setFilteredVehicles(processedVehicles);
+
+      // Calculate comprehensive stats
+      const totalVehicles = processedVehicles.length;
+      const availableVehicles = processedVehicles.filter(v => v.status === 'available').length;
+      const bookedVehicles = processedVehicles.filter(v => v.status === 'booked').length;
+      const maintenanceVehicles = processedVehicles.filter(v => v.status === 'maintenance').length;
+      const totalRevenue = processedVehicles.reduce((sum, v) => sum + (v.total_revenue || 0), 0);
+      const totalBookings = processedVehicles.reduce((sum, v) => sum + (v.total_bookings || 0), 0);
+      const avgRating = processedVehicles.length > 0 
+        ? processedVehicles.reduce((sum, v) => sum + (v.average_rating || 0), 0) / processedVehicles.length 
+        : 0;
+
+      // Calculate category stats
+      const categoryStats = categoriesData?.map(category => {
+        const categoryVehicles = processedVehicles.filter(v => v.category === category.name);
+        const categoryRevenue = categoryVehicles.reduce((sum, v) => sum + (v.total_revenue || 0), 0);
+        const categoryBookings = categoryVehicles.reduce((sum, v) => sum + (v.total_bookings || 0), 0);
+        
+        return {
+          ...category,
+          vehicle_count: categoryVehicles.length,
+          total_revenue: categoryRevenue,
+          total_bookings: categoryBookings
+        };
+      }) || [];
+
+      // Update stats
+      setStats({
+        total: totalVehicles,
+        available: availableVehicles,
+        booked: bookedVehicles,
+        maintenance: maintenanceVehicles,
+        totalRevenue,
+        totalBookings,
+        avgRating: avgRating.toFixed(1),
+        pendingDocs: processedVehicles.filter(v => v.document_verification_status === 'pending').length,
+        expiringSoon: processedVehicles.filter(v => {
+          const motExpiry = v.mot_expiry ? new Date(v.mot_expiry) : null;
+          const insuranceExpiry = v.insurance_expiry ? new Date(v.insurance_expiry) : null;
+          const thirtyDaysFromNow = new Date(now.getTime() + 30 * 24 * 60 * 60 * 1000);
+          
+          return (motExpiry && motExpiry <= thirtyDaysFromNow) || 
+                 (insuranceExpiry && insuranceExpiry <= thirtyDaysFromNow);
+        }).length
+      });
+
     } catch (error) {
       console.error('Error loading vehicles:', error);
     }
@@ -521,27 +586,6 @@ export default function FleetPage() {
 
   const canManageFleet = user.role === 'PARTNER' || (user.role === 'PARTNER_STAFF' && user.permissions?.canManageFleet);
 
-  const stats = {
-    total: vehicles.length,
-    available: vehicles.filter(v => v.status === 'available').length,
-    booked: vehicles.filter(v => v.status === 'booked').length,
-    maintenance: vehicles.filter(v => v.status === 'maintenance').length,
-    inactive: vehicles.filter(v => v.status === 'inactive').length,
-    totalRevenue: vehicles.reduce((sum, v) => sum + (v.total_revenue || 0), 0),
-    totalBookings: vehicles.reduce((sum, v) => sum + (v.total_bookings || 0), 0),
-    averageRating: vehicles.length > 0 ? 
-      (vehicles.reduce((sum, v) => sum + (v.average_rating || 0), 0) / vehicles.length).toFixed(1) : '0.0',
-    pendingDocuments: vehicles.filter(v => v.document_verification_status === 'pending').length,
-    expiringSoon: vehicles.filter(v => {
-      if (!v.insurance_expiry && !v.mot_expiry && !v.next_service) return false;
-      const oneMonth = new Date();
-      oneMonth.setMonth(oneMonth.getMonth() + 1);
-      return (v.insurance_expiry && new Date(v.insurance_expiry) <= oneMonth) ||
-             (v.mot_expiry && new Date(v.mot_expiry) <= oneMonth) ||
-             (v.next_service && new Date(v.next_service) <= oneMonth);
-    }).length
-  };
-
   const makes = Array.from(new Set(vehicles.map(vehicle => vehicle.make).filter(Boolean)));
   const models = Array.from(new Set(vehicles.map(vehicle => vehicle.model).filter(Boolean)));
 
@@ -552,9 +596,9 @@ export default function FleetPage() {
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center py-6 gap-4">
             <div>
-              <h1 className="text-3xl font-bold text-gray-900">Fleet Management</h1>
+              <h1 className="text-3xl font-bold text-gray-900">All Vehicles</h1>
               <p className="text-gray-600 mt-1">
-                Manage your vehicle fleet efficiently
+                View and manage all vehicles in your fleet
               </p>
             </div>
             <div className="flex flex-wrap items-center gap-3">

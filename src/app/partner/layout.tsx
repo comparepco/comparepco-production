@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback, useMemo } from 'react';
 import Link from 'next/link';
 import { usePathname, useRouter } from 'next/navigation';
 import { useAuth } from '@/contexts/AuthContext';
@@ -42,7 +42,6 @@ const navigation = [
     category: 'fleet',
     subItems: [
       { name: 'Fleet Overview', href: '/partner/fleet', icon: FaTachometerAlt },
-      { name: 'All Vehicles', href: '/partner/fleet/vehicles', icon: FaCar },
       { name: 'Add Vehicle', href: '/partner/fleet/add', icon: FaPlus },
       { name: 'Vehicle Categories', href: '/partner/fleet/categories', icon: FaTags },
       { name: 'Bulk Operations', href: '/partner/fleet/bulk', icon: FaCogs }
@@ -281,24 +280,78 @@ export default function PartnerLayout({
 }: {
   children: React.ReactNode;
 }) {
-  const { user, loading } = useAuth();
+  const { user, loading: authLoading } = useAuth();
   const pathname = usePathname();
   const router = useRouter();
   
   // Set sidebar collapsed by default on mobile, expanded on desktop
-  const [sidebarCollapsed, setSidebarCollapsed] = useState(true);
-  const [isMobile, setIsMobile] = useState(true);
+  const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
   const [showMobileSidebar, setShowMobileSidebar] = useState(false);
-  const [notifications, setNotifications] = useState<any[]>([]);
-  const [showNotifications, setShowNotifications] = useState(false);
+  const [isMobile, setIsMobile] = useState(false);
+  const [expandedCategories, setExpandedCategories] = useState<Set<string>>(new Set());
   const [userPermissions, setUserPermissions] = useState<any>(null);
   const [badgeCounts, setBadgeCounts] = useState({
     unreadNotifications: 0,
     openClaims: 0
   });
-  const [partnerStatus, setPartnerStatus] = useState<string | null>(null);
+  const [partnerStatus, setPartnerStatus] = useState<string>('active');
   const [isAccountSuspended, setIsAccountSuspended] = useState(false);
-  const [expandedCategories, setExpandedCategories] = useState<Set<string>>(new Set());
+  const [showNotifications, setShowNotifications] = useState(false);
+  const [notifications, setNotifications] = useState<any[]>([]);
+  
+  console.log('PartnerLayout - User:', user);
+  console.log('PartnerLayout - User role:', user?.role);
+  console.log('PartnerLayout - Auth loading:', authLoading);
+  console.log('PartnerLayout - Current pathname:', pathname);
+  console.log('PartnerLayout - Is mobile:', isMobile);
+  console.log('PartnerLayout - Sidebar collapsed:', sidebarCollapsed);
+  console.log('PartnerLayout - Show mobile sidebar:', showMobileSidebar);
+  
+  // Filter navigation based on user role and permissions
+  const getFilteredNavigation = () => {
+    if (!user || !userPermissions) return [];
+
+    const filtered = navigation.filter(item => {
+      // If it's partner-only and user is not a partner, hide it
+      if (item.partnerOnly && user.role !== 'PARTNER') {
+        return false;
+      }
+
+      // If it requires a specific permission, check if user has it
+      if (item.requiredPermission) {
+        return userPermissions[item.requiredPermission] === true;
+      }
+
+      // If no specific permission required, show it
+      return true;
+    });
+
+    console.log('Filtered navigation:', filtered);
+    console.log('User permissions:', userPermissions);
+    console.log('User role:', user.role);
+
+    return filtered;
+  };
+
+  const filteredNavigation = useMemo(() => getFilteredNavigation(), [user, userPermissions]);
+
+  // Auto-expand categories based on current pathname
+  useEffect(() => {
+    const currentPath = pathname;
+    const newExpandedCategories = new Set<string>();
+    
+    // Check if current path matches any sub-items and expand their parent category
+    filteredNavigation.forEach(item => {
+      if (item.subItems) {
+        const hasActiveSubItem = item.subItems.some(subItem => currentPath === subItem.href);
+        if (hasActiveSubItem) {
+          newExpandedCategories.add(item.category || '');
+        }
+      }
+    });
+    
+    setExpandedCategories(newExpandedCategories);
+  }, [pathname]);
 
   // Handle screen size changes and set initial sidebar state
   useEffect(() => {
@@ -330,7 +383,10 @@ export default function PartnerLayout({
 
   // Load user permissions and badge counts
   useEffect(() => {
-    if (!user) return;
+    if (!user) {
+      console.log('No user found, skipping permissions load');
+      return;
+    }
 
     const loadUserData = async () => {
       try {
@@ -350,64 +406,64 @@ export default function PartnerLayout({
             return;
           }
 
+          console.log('Partner data loaded:', partnerData);
           setPartnerStatus(partnerData.status);
           
           // Check if account is suspended or deactivated
           if (partnerData.status === 'suspended') {
             setIsAccountSuspended(true);
-            toast.error(`Your account has been ${partnerData.approval_status === 'rejected' ? 'deactivated' : 'suspended'}. Please contact support.`);
-            router.push('/auth/login');
             return;
           }
 
-          // Check if user account is active
-          const { data: userData, error: userError } = await supabase
-            .from('users')
-            .select('is_active')
-            .eq('id', user.id)
-            .single();
+          // Load staff permissions if user is staff
+          if (user.role === 'PARTNER_STAFF') {
+            const { data: staffData, error: staffError } = await supabase
+              .from('partner_staff')
+              .select('permissions')
+              .eq('id', user.id)
+              .single();
 
-          if (userError) {
-            console.error('Error loading user data:', userError);
-          } else if (!userData.is_active) {
-            setIsAccountSuspended(true);
-            toast.error('Your account has been deactivated. Please contact support.');
-            router.push('/auth/login');
-            return;
+            if (staffError) {
+              console.error('Error loading staff permissions:', staffError);
+              // Set default permissions for staff
+              setUserPermissions({
+                canManageFleet: true,
+                canManageBookings: true,
+                canManageDrivers: true,
+                canManageMaintenence: true,
+                canViewReports: true,
+                canManageStaff: false,
+                canManagePricing: true,
+                canManageDocuments: true
+              });
+            } else {
+              console.log('Staff permissions loaded:', staffData.permissions);
+              setUserPermissions(staffData.permissions);
+            }
+          } else {
+            // Partner has all permissions
+            console.log('Setting partner permissions (all true)');
+            setUserPermissions({
+              canManageFleet: true,
+              canManageBookings: true,
+              canManageDrivers: true,
+              canManageMaintenence: true,
+              canViewReports: true,
+              canManageStaff: true,
+              canManagePricing: true,
+              canManageDocuments: true
+            });
           }
-        }
 
-        if (user.role === 'PARTNER_STAFF') {
-          // For now, set default permissions for staff
-          const permissions = {
-            canManageFleet: true,
-            canManageDrivers: true,
-            canViewReports: true,
-            canManageBookings: true,
-            canViewFinancials: true,
-            canManageMaintenence: true
-          };
-          console.log('Setting staff permissions:', permissions);
-          setUserPermissions(permissions);
-        } else if (user.role === 'PARTNER') {
-          // Partners have all permissions
-          const permissions = {
-            canManageFleet: true,
-            canManageDrivers: true,
-            canViewReports: true,
-            canManageBookings: true,
-            canViewFinancials: true,
-            canManageMaintenence: true
-          };
-          console.log('Setting partner permissions:', permissions);
-          setUserPermissions(permissions);
-        }
+          // Load badge counts - simplified for now
+          setBadgeCounts({
+            unreadNotifications: 0,
+            openClaims: 0
+          });
 
-        // Load badge counts - simplified for now
-        setBadgeCounts({
-          unreadNotifications: 0,
-          openClaims: 0
-        });
+        } else {
+          console.log('User is not a partner or staff member');
+        }
 
       } catch (error) {
         console.error('Error loading user data:', error);
@@ -416,28 +472,6 @@ export default function PartnerLayout({
 
     loadUserData();
   }, [user]);
-
-  // Filter navigation based on user role and permissions
-  const getFilteredNavigation = () => {
-    if (!user || !userPermissions) return [];
-
-    return navigation.filter(item => {
-      // If it's partner-only and user is not a partner, hide it
-      if (item.partnerOnly && user.role !== 'PARTNER') {
-        return false;
-      }
-
-      // If it requires a specific permission, check if user has it
-      if (item.requiredPermission) {
-        return userPermissions[item.requiredPermission] === true;
-      }
-
-      // If no specific permission required, show it
-      return true;
-    });
-  };
-
-  const filteredNavigation = getFilteredNavigation();
 
   // Check if user has permission to access current route
   useEffect(() => {
@@ -484,7 +518,7 @@ export default function PartnerLayout({
     });
   };
 
-  if (loading) {
+  if (authLoading) {
     return (
       <div className="min-h-screen bg-gray-50 dark:bg-gray-900 flex items-center justify-center">
         <div className="text-center">
@@ -595,7 +629,9 @@ export default function PartnerLayout({
               {/* Mobile Navigation */}
               <nav className="p-4 space-y-2">
                 {filteredNavigation.map((item) => {
-                  const isActive = pathname.startsWith(item.href);
+                  // Improved active state logic
+                  const isExactMatch = pathname === item.href;
+                  const isActive = isExactMatch || (item.href !== '/partner' && pathname.startsWith(item.href));
                   const hasSubItems = item.subItems && item.subItems.length > 0;
                   const isExpanded = expandedCategories.has(item.category || '');
                   
@@ -648,7 +684,7 @@ export default function PartnerLayout({
                       {hasSubItems && isExpanded && (
                         <div className="ml-6 space-y-1">
                           {item.subItems.map((subItem) => {
-                            const isSubActive = pathname === subItem.href || pathname.startsWith(subItem.href);
+                            const isSubActive = pathname === subItem.href;
                             return (
                               <Link
                                 key={subItem.name}
@@ -761,24 +797,50 @@ export default function PartnerLayout({
         )}
 
         {/* Navigation */}
-        <nav className="flex-1 p-4 space-y-2 overflow-y-auto">
+        <nav className="flex-1 p-4 space-y-2 overflow-y-auto" style={{ zIndex: 1000, position: 'relative' }}>
+          {/*  Removed temporary debug buttons */}
+          
           {filteredNavigation.map((item) => {
-            const isActive = pathname.startsWith(item.href);
+            // Improved active state logic
+            const isExactMatch = pathname === item.href;
+            const isActive = isExactMatch || (item.href !== '/partner' && pathname.startsWith(item.href));
             const hasSubItems = item.subItems && item.subItems.length > 0;
             const isExpanded = expandedCategories.has(item.category || '');
             
+            console.log('Navigation item:', item.name, 'href:', item.href, 'isActive:', isActive);
+            
             return (
-              <div key={item.name} className="space-y-1">
+              <div key={item.name} className="space-y-1" style={{ position: 'relative', zIndex: 1001 }}>
                 {/* Main Navigation Item */}
                 <div className="flex items-center">
-                  <Link
-                    href={item.href}
-                    className={`flex-1 flex items-center gap-3 px-3 py-3 rounded-xl transition-all duration-200 group ${
+                  <button
+                    onClick={(e) => {
+                      e.preventDefault();
+                      e.stopPropagation();
+                      console.log('Clicked on navigation item:', item.name, 'href:', item.href);
+                      console.log('Event target:', e.target);
+                      console.log('Event currentTarget:', e.currentTarget);
+                      console.log('About to navigate to:', item.href);
+                      router.push(item.href);
+                    }}
+                    onMouseDown={(e) => {
+                      console.log('Mouse down on:', item.name);
+                    }}
+                    onMouseUp={(e) => {
+                      console.log('Mouse up on:', item.name);
+                    }}
+                    className={`flex-1 flex items-center gap-3 px-3 py-3 rounded-xl transition-all duration-200 group cursor-pointer text-left ${
                       isActive
                         ? `${item.bgColor} ${item.color} shadow-sm`
                         : 'text-gray-700 hover:bg-gray-100'
                     }`}
                     title={sidebarCollapsed ? item.name : undefined}
+                    style={{ 
+                      pointerEvents: 'auto',
+                      position: 'relative',
+                      zIndex: 1002,
+                      userSelect: 'none'
+                    }}
                   >
                     <div className={`p-2 rounded-lg ${isActive ? 'bg-white shadow-sm' : 'group-hover:bg-white group-hover:shadow-sm'} transition-all duration-200`}>
                       <item.icon className={`w-4 h-4 ${isActive ? item.color : 'text-gray-600'}`} />
@@ -798,12 +860,16 @@ export default function PartnerLayout({
                         )}
                       </span>
                     )}
-                  </Link>
+                  </button>
                   
                   {/* Expand/Collapse Button for Items with SubItems */}
                   {!sidebarCollapsed && hasSubItems && (
                     <button
-                      onClick={() => toggleCategory(item.category || '')}
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        console.log('Toggling category:', item.category);
+                        toggleCategory(item.category || '');
+                      }}
                       className={`p-2 rounded-lg transition-all duration-200 ${
                         isExpanded ? 'bg-gray-100 text-gray-700' : 'text-gray-400 hover:text-gray-600 hover:bg-gray-50'
                       }`}
@@ -818,20 +884,31 @@ export default function PartnerLayout({
                 {!sidebarCollapsed && hasSubItems && isExpanded && (
                   <div className="ml-6 space-y-1">
                     {item.subItems.map((subItem) => {
-                      const isSubActive = pathname === subItem.href || pathname.startsWith(subItem.href);
+                      const isSubActive = pathname === subItem.href;
                       return (
-                        <Link
+                        <button
                           key={subItem.name}
-                          href={subItem.href}
-                          className={`flex items-center gap-3 px-3 py-2 rounded-lg transition-all duration-200 group ${
+                          onClick={(e) => {
+                            e.preventDefault();
+                            e.stopPropagation();
+                            console.log('Clicked on sub-item:', subItem.name, 'href:', subItem.href);
+                            console.log('Sub-item event target:', e.target);
+                            router.push(subItem.href);
+                          }}
+                          className={`w-full flex items-center gap-3 px-3 py-2 rounded-lg transition-all duration-200 group cursor-pointer text-left ${
                             isSubActive
                               ? 'bg-blue-50 text-blue-700 border-l-2 border-blue-600'
                               : 'text-gray-600 hover:bg-gray-50 hover:text-gray-700'
                           }`}
+                          style={{ 
+                            pointerEvents: 'auto',
+                            position: 'relative',
+                            zIndex: 1002
+                          }}
                         >
                           <subItem.icon className={`w-3 h-3 ${isSubActive ? 'text-blue-600' : 'text-gray-400'}`} />
                           <span className="text-sm font-medium">{subItem.name}</span>
-                        </Link>
+                        </button>
                       );
                     })}
                   </div>
