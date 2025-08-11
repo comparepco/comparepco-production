@@ -18,6 +18,7 @@ import {
 } from 'react-icons/fa';
 import LiveChatWidget from '@/components/shared/LiveChatWidget';
 import { toast } from 'react-hot-toast';
+import { SidebarProvider } from '@/contexts/SidebarContext';
 
 const navigation = [
   // MAIN DASHBOARD
@@ -582,36 +583,212 @@ export default function PartnerLayout({
   }
 
   return (
-    <div className="min-h-screen bg-gray-50 flex">
-      {/* Mobile Sidebar Overlay */}
-      {isMobile && showMobileSidebar && (
-        <>
-          {/* Backdrop */}
-          <div 
-            className="fixed inset-0 z-40 lg:hidden bg-black/40 backdrop-blur-sm"
-            onClick={() => setShowMobileSidebar(false)}
-          />
-          {/* Sidebar */}
-          <div 
-            className="fixed left-0 top-0 z-50 h-full w-80 bg-white shadow-xl transform transition-transform duration-300 ease-in-out flex flex-col lg:hidden"
-            onClick={(e) => e.stopPropagation()}
-          >
-            {/* Mobile Sidebar Header - Fixed */}
-            <div className="p-4 border-b border-gray-200 flex justify-between items-center flex-shrink-0">
-              <div>
-                <h1 className="text-xl font-bold text-gray-900">ComparePCO</h1>
-                <p className="text-sm text-gray-600">Partner Portal</p>
+    <SidebarProvider>
+      <div className="min-h-screen bg-gray-50 flex">
+        {/* Mobile Sidebar Overlay */}
+        {isMobile && showMobileSidebar && (
+          <>
+            {/* Backdrop */}
+            <div 
+              className="fixed inset-0 z-40 lg:hidden bg-black/40 backdrop-blur-sm"
+              onClick={() => setShowMobileSidebar(false)}
+            />
+            {/* Sidebar */}
+            <div 
+              className="fixed left-0 top-0 z-50 h-full w-80 bg-white shadow-xl transform transition-transform duration-300 ease-in-out flex flex-col lg:hidden"
+              onClick={(e) => e.stopPropagation()}
+            >
+              {/* Mobile Sidebar Header - Fixed */}
+              <div className="p-4 border-b border-gray-200 flex justify-between items-center flex-shrink-0">
+                <div>
+                  <h1 className="text-xl font-bold text-gray-900">ComparePCO</h1>
+                  <p className="text-sm text-gray-600">Partner Portal</p>
+                </div>
+                <button
+                  onClick={() => setShowMobileSidebar(false)}
+                  className="p-2 rounded-lg hover:bg-gray-100 transition-colors"
+                >
+                  <FaTimes className="w-5 h-5 text-gray-600" />
+                </button>
               </div>
+
+              {/* Mobile User Profile - Fixed */}
+              <div className="p-4 border-b border-gray-200 flex-shrink-0">
+                <div className="flex items-center gap-3">
+                  <div className="w-12 h-12 bg-gradient-to-br from-blue-500 to-purple-600 rounded-xl flex items-center justify-center text-white font-bold">
+                    {(user as any)?.firstName?.[0] || user?.email?.[0] || 'P'}
+                  </div>
+                  <div className="flex-1 min-w-0">
+                    <p className="font-semibold text-gray-900 truncate">
+                      {(user as any)?.firstName} {(user as any)?.lastName}
+                    </p>
+                    <p className="text-sm text-gray-600 truncate">{user?.email}</p>
+                  </div>
+                </div>
+              </div>
+
+              {/* Scrollable Content Container */}
+              <div className="flex-1 overflow-y-auto">
+                {/* Mobile Navigation */}
+                <nav className="p-4 space-y-2">
+                  {filteredNavigation.map((item) => {
+                    // Improved active state logic for maintenance pages
+                    const isExactMatch = pathname === item.href;
+                    const isActive = isExactMatch || (item.href !== '/partner' && pathname.startsWith(item.href));
+                    const hasSubItems = item.subItems && item.subItems.length > 0;
+                    const isExpanded = expandedCategories.has(item.category || '');
+                    
+                    // Special handling for maintenance pages to ensure proper active state
+                    const isMaintenanceActive = item.category === 'maintenance' && pathname.startsWith('/partner/maintenance');
+                    const finalIsActive = isMaintenanceActive || isActive;
+                    
+                    return (
+                      <div key={item.name} className="space-y-1">
+                        {/* Main Navigation Item */}
+                        <div className="flex items-center">
+                          <Link
+                            href={item.href}
+                            className={`flex-1 flex items-center gap-3 px-3 py-3 rounded-xl transition-all duration-200 group ${
+                              finalIsActive
+                                ? `${item.bgColor} ${item.color} shadow-sm`
+                                : 'text-gray-700 hover:bg-gray-100'
+                            }`}
+                            onClick={() => setShowMobileSidebar(false)}
+                          >
+                            <div className={`p-2 rounded-lg ${finalIsActive ? 'bg-white shadow-sm' : 'group-hover:bg-white group-hover:shadow-sm'} transition-all duration-200`}>
+                              <item.icon className={`w-4 h-4 ${finalIsActive ? item.color : 'text-gray-600'}`} />
+                            </div>
+                            <span className="font-medium flex items-center gap-1">
+                              {item.name}
+                              {item.name === 'Notifications' && badgeCounts.unreadNotifications > 0 && (
+                                <span className="ml-1 inline-flex items-center justify-center text-xs font-semibold bg-blue-600 text-white rounded-full px-1.5">
+                                  {badgeCounts.unreadNotifications > 99 ? '99+' : badgeCounts.unreadNotifications}
+                                </span>
+                              )}
+                              {item.name === 'Vehicle Claims' && badgeCounts.openClaims > 0 && (
+                                <span className="ml-1 inline-flex items-center justify-center text-xs font-semibold bg-amber-500 text-white rounded-full px-1.5">
+                                  {badgeCounts.openClaims > 99 ? '99+' : badgeCounts.openClaims}
+                                </span>
+                              )}
+                            </span>
+                          </Link>
+                          
+                          {/* Expand/Collapse Button for Items with SubItems */}
+                          {hasSubItems && (
+                            <button
+                              onClick={() => toggleCategory(item.category || '')}
+                              className={`p-2 rounded-lg transition-all duration-200 ${
+                                isExpanded ? 'bg-gray-100 text-gray-700' : 'text-gray-400 hover:text-gray-600 hover:bg-gray-50'
+                              }`}
+                              title={isExpanded ? 'Collapse' : 'Expand'}
+                            >
+                              <FaChevronRight className={`w-3 h-3 transition-transform duration-200 ${isExpanded ? 'rotate-90' : ''}`} />
+                            </button>
+                          )}
+                        </div>
+                        
+                        {/* SubItems Dropdown */}
+                        {hasSubItems && isExpanded && (
+                          <div className="ml-6 space-y-1">
+                            {item.subItems.map((subItem) => {
+                              const isSubActive = pathname === subItem.href;
+                              return (
+                                <Link
+                                  key={subItem.name}
+                                  href={subItem.href}
+                                  className={`flex items-center gap-3 px-3 py-2 rounded-lg transition-all duration-200 group ${
+                                    isSubActive
+                                      ? 'bg-blue-50 text-blue-700 border-l-2 border-blue-600'
+                                      : 'text-gray-600 hover:bg-gray-50 hover:text-gray-700'
+                                  }`}
+                                  onClick={() => setShowMobileSidebar(false)}
+                                >
+                                  <subItem.icon className={`w-3 h-3 ${isSubActive ? 'text-blue-600' : 'text-gray-400'}`} />
+                                  <span className="text-sm font-medium">{subItem.name}</span>
+                                </Link>
+                              );
+                            })}
+                          </div>
+                        )}
+                      </div>
+                    );
+                  })}
+                </nav>
+
+                {/* Mobile Quick Actions */}
+                {user?.role === 'PARTNER' && (
+                  <div className="px-4 pb-4 border-t border-gray-200 pt-4">
+                    <Link
+                      href="/partner/fleet/add"
+                      className="flex items-center gap-3 px-3 py-2 text-white bg-gradient-to-r from-blue-600 to-purple-600 rounded-lg hover:from-blue-700 hover:to-purple-700 transition-all duration-200 shadow-sm"
+                      onClick={() => setShowMobileSidebar(false)}
+                    >
+                      <FaPlus className="w-4 h-4" />
+                      <span className="font-medium">Add Vehicle</span>
+                    </Link>
+                  </div>
+                )}
+
+                {/* Mobile Bottom Navigation */}
+                <div className="px-4 pb-4 border-t border-gray-200 pt-4 space-y-1">
+                  {bottomNavigation.map((item) => {
+                    const isActive = pathname.startsWith(item.href);
+                    return (
+                      <Link
+                        key={item.name}
+                        href={item.href}
+                        className={`flex items-center gap-3 px-3 py-2 rounded-lg transition-all duration-200 ${
+                          isActive
+                            ? `${item.bgColor} ${item.color}`
+                            : 'text-gray-600 hover:bg-gray-100'
+                        }`}
+                        onClick={() => setShowMobileSidebar(false)}
+                      >
+                        <item.icon className="w-4 h-4" />
+                        <span className="font-medium">{item.name}</span>
+                      </Link>
+                    );
+                  })}
+                  
+                  <button
+                    onClick={handleLogout}
+                    className="w-full flex items-center gap-3 px-3 py-2 text-red-600 hover:bg-red-50 rounded-lg transition-all duration-200"
+                  >
+                    <FaSignOutAlt className="w-4 h-4" />
+                    <span className="font-medium">Sign Out</span>
+                  </button>
+                </div>
+
+                {/* Extra padding at bottom to ensure scrollability */}
+                <div className="h-4"></div>
+              </div>
+            </div>
+          </>
+        )}
+
+        {/* Desktop Sidebar - Hidden on mobile */}
+        <div id="partner-sidebar" className={`${isMobile ? 'hidden' : (sidebarCollapsed ? 'w-20' : 'w-72')} bg-white shadow-xl border-r border-gray-200 transition-all duration-300 flex flex-col relative z-[200]`}>
+          {/* Logo */}
+          <div className="p-6 border-b border-gray-200">
+            <div className="flex items-center justify-between">
+              {!sidebarCollapsed && (
+                <div>
+                  <h1 className="text-xl font-bold text-gray-900">ComparePCO</h1>
+                  <p className="text-sm text-gray-600">Partner Portal</p>
+                </div>
+              )}
               <button
-                onClick={() => setShowMobileSidebar(false)}
+                onClick={() => setSidebarCollapsed(!sidebarCollapsed)}
                 className="p-2 rounded-lg hover:bg-gray-100 transition-colors"
               >
-                <FaTimes className="w-5 h-5 text-gray-600" />
+                {sidebarCollapsed ? <FaChevronRight /> : <FaChevronLeft />}
               </button>
             </div>
+          </div>
 
-            {/* Mobile User Profile - Fixed */}
-            <div className="p-4 border-b border-gray-200 flex-shrink-0">
+          {/* User Profile */}
+          {!sidebarCollapsed && (
+            <div className="p-6 border-b border-gray-200">
               <div className="flex items-center gap-3">
                 <div className="w-12 h-12 bg-gradient-to-br from-blue-500 to-purple-600 rounded-xl flex items-center justify-center text-white font-bold">
                   {(user as any)?.firstName?.[0] || user?.email?.[0] || 'P'}
@@ -624,562 +801,388 @@ export default function PartnerLayout({
                 </div>
               </div>
             </div>
+          )}
 
-            {/* Scrollable Content Container */}
-            <div className="flex-1 overflow-y-auto">
-              {/* Mobile Navigation */}
-              <nav className="p-4 space-y-2">
-                {filteredNavigation.map((item) => {
-                  // Improved active state logic for maintenance pages
-                  const isExactMatch = pathname === item.href;
-                  const isActive = isExactMatch || (item.href !== '/partner' && pathname.startsWith(item.href));
-                  const hasSubItems = item.subItems && item.subItems.length > 0;
-                  const isExpanded = expandedCategories.has(item.category || '');
-                  
-                  // Special handling for maintenance pages to ensure proper active state
-                  const isMaintenanceActive = item.category === 'maintenance' && pathname.startsWith('/partner/maintenance');
-                  const finalIsActive = isMaintenanceActive || isActive;
-                  
-                  return (
-                    <div key={item.name} className="space-y-1">
-                      {/* Main Navigation Item */}
-                      <div className="flex items-center">
-                        <Link
-                          href={item.href}
-                          className={`flex-1 flex items-center gap-3 px-3 py-3 rounded-xl transition-all duration-200 group ${
-                            finalIsActive
-                              ? `${item.bgColor} ${item.color} shadow-sm`
-                              : 'text-gray-700 hover:bg-gray-100'
-                          }`}
-                          onClick={() => setShowMobileSidebar(false)}
-                        >
-                          <div className={`p-2 rounded-lg ${finalIsActive ? 'bg-white shadow-sm' : 'group-hover:bg-white group-hover:shadow-sm'} transition-all duration-200`}>
-                            <item.icon className={`w-4 h-4 ${finalIsActive ? item.color : 'text-gray-600'}`} />
-                          </div>
-                          <span className="font-medium flex items-center gap-1">
-                            {item.name}
-                            {item.name === 'Notifications' && badgeCounts.unreadNotifications > 0 && (
-                              <span className="ml-1 inline-flex items-center justify-center text-xs font-semibold bg-blue-600 text-white rounded-full px-1.5">
-                                {badgeCounts.unreadNotifications > 99 ? '99+' : badgeCounts.unreadNotifications}
-                              </span>
-                            )}
-                            {item.name === 'Vehicle Claims' && badgeCounts.openClaims > 0 && (
-                              <span className="ml-1 inline-flex items-center justify-center text-xs font-semibold bg-amber-500 text-white rounded-full px-1.5">
-                                {badgeCounts.openClaims > 99 ? '99+' : badgeCounts.openClaims}
-                              </span>
-                            )}
-                          </span>
-                        </Link>
-                        
-                        {/* Expand/Collapse Button for Items with SubItems */}
-                        {hasSubItems && (
-                          <button
-                            onClick={() => toggleCategory(item.category || '')}
-                            className={`p-2 rounded-lg transition-all duration-200 ${
-                              isExpanded ? 'bg-gray-100 text-gray-700' : 'text-gray-400 hover:text-gray-600 hover:bg-gray-50'
-                            }`}
-                            title={isExpanded ? 'Collapse' : 'Expand'}
-                          >
-                            <FaChevronRight className={`w-3 h-3 transition-transform duration-200 ${isExpanded ? 'rotate-90' : ''}`} />
-                          </button>
-                        )}
-                      </div>
-                      
-                      {/* SubItems Dropdown */}
-                      {hasSubItems && isExpanded && (
-                        <div className="ml-6 space-y-1">
-                          {item.subItems.map((subItem) => {
-                            const isSubActive = pathname === subItem.href;
-                            return (
-                              <Link
-                                key={subItem.name}
-                                href={subItem.href}
-                                className={`flex items-center gap-3 px-3 py-2 rounded-lg transition-all duration-200 group ${
-                                  isSubActive
-                                    ? 'bg-blue-50 text-blue-700 border-l-2 border-blue-600'
-                                    : 'text-gray-600 hover:bg-gray-50 hover:text-gray-700'
-                                }`}
-                                onClick={() => setShowMobileSidebar(false)}
-                              >
-                                <subItem.icon className={`w-3 h-3 ${isSubActive ? 'text-blue-600' : 'text-gray-400'}`} />
-                                <span className="text-sm font-medium">{subItem.name}</span>
-                              </Link>
-                            );
-                          })}
-                        </div>
-                      )}
-                    </div>
-                  );
-                })}
-              </nav>
-
-              {/* Mobile Quick Actions */}
-              {user?.role === 'PARTNER' && (
-                <div className="px-4 pb-4 border-t border-gray-200 pt-4">
-                  <Link
-                    href="/partner/fleet/add"
-                    className="flex items-center gap-3 px-3 py-2 text-white bg-gradient-to-r from-blue-600 to-purple-600 rounded-lg hover:from-blue-700 hover:to-purple-700 transition-all duration-200 shadow-sm"
-                    onClick={() => setShowMobileSidebar(false)}
-                  >
-                    <FaPlus className="w-4 h-4" />
-                    <span className="font-medium">Add Vehicle</span>
-                  </Link>
-                </div>
-              )}
-
-              {/* Mobile Bottom Navigation */}
-              <div className="px-4 pb-4 border-t border-gray-200 pt-4 space-y-1">
-                {bottomNavigation.map((item) => {
-                  const isActive = pathname.startsWith(item.href);
-                  return (
-                    <Link
-                      key={item.name}
-                      href={item.href}
-                      className={`flex items-center gap-3 px-3 py-2 rounded-lg transition-all duration-200 ${
-                        isActive
-                          ? `${item.bgColor} ${item.color}`
-                          : 'text-gray-600 hover:bg-gray-100'
+          {/* Navigation */}
+          <nav className="flex-1 p-4 space-y-2 overflow-y-auto" style={{ zIndex: 1000, position: 'relative' }}>
+            {/*  Removed temporary debug buttons */}
+            
+            {filteredNavigation.map((item) => {
+              // Improved active state logic for maintenance pages
+              const isExactMatch = pathname === item.href;
+              const isActive = isExactMatch || (item.href !== '/partner' && pathname.startsWith(item.href));
+              const hasSubItems = item.subItems && item.subItems.length > 0;
+              const isExpanded = expandedCategories.has(item.category || '');
+              
+              // Special handling for maintenance pages to ensure proper active state
+              const isMaintenanceActive = item.category === 'maintenance' && pathname.startsWith('/partner/maintenance');
+              const finalIsActive = isMaintenanceActive || isActive;
+              
+              console.log('Navigation item:', item.name, 'href:', item.href, 'isActive:', finalIsActive, 'isMaintenanceActive:', isMaintenanceActive);
+              
+              return (
+                <div key={item.name} className="space-y-1" style={{ position: 'relative', zIndex: 1001 }}>
+                  {/* Main Navigation Item */}
+                  <div className="flex items-center">
+                    <button
+                      onClick={(e) => {
+                        e.preventDefault();
+                        e.stopPropagation();
+                        console.log('Clicked on navigation item:', item.name, 'href:', item.href);
+                        console.log('Event target:', e.target);
+                        console.log('Event currentTarget:', e.currentTarget);
+                        console.log('About to navigate to:', item.href);
+                        router.push(item.href);
+                      }}
+                      onMouseDown={(e) => {
+                        console.log('Mouse down on:', item.name);
+                      }}
+                      onMouseUp={(e) => {
+                        console.log('Mouse up on:', item.name);
+                      }}
+                      className={`flex-1 flex items-center gap-3 px-3 py-3 rounded-xl transition-all duration-200 group cursor-pointer text-left ${
+                        finalIsActive
+                          ? `${item.bgColor} ${item.color} shadow-sm`
+                          : 'text-gray-700 hover:bg-gray-100'
                       }`}
-                      onClick={() => setShowMobileSidebar(false)}
+                      title={sidebarCollapsed ? item.name : undefined}
+                      style={{ 
+                        pointerEvents: 'auto',
+                        position: 'relative',
+                        zIndex: 1002,
+                        userSelect: 'none'
+                      }}
                     >
-                      <item.icon className="w-4 h-4" />
-                      <span className="font-medium">{item.name}</span>
-                    </Link>
-                  );
-                })}
-                
-                <button
-                  onClick={handleLogout}
-                  className="w-full flex items-center gap-3 px-3 py-2 text-red-600 hover:bg-red-50 rounded-lg transition-all duration-200"
+                      <div className={`p-2 rounded-lg ${finalIsActive ? 'bg-white shadow-sm' : 'group-hover:bg-white group-hover:shadow-sm'} transition-all duration-200`}>
+                        <item.icon className={`w-4 h-4 ${finalIsActive ? item.color : 'text-gray-600'}`} />
+                      </div>
+                      {!sidebarCollapsed && (
+                        <span className="font-medium flex items-center gap-1">
+                          {item.name}
+                          {item.name === 'Notifications' && badgeCounts.unreadNotifications > 0 && (
+                            <span className="ml-1 inline-flex items-center justify-center text-xs font-semibold bg-blue-600 text-white rounded-full px-1.5">
+                              {badgeCounts.unreadNotifications > 99 ? '99+' : badgeCounts.unreadNotifications}
+                            </span>
+                          )}
+                          {item.name === 'Vehicle Claims' && badgeCounts.openClaims > 0 && (
+                            <span className="ml-1 inline-flex items-center justify-center text-xs font-semibold bg-amber-500 text-white rounded-full px-1.5">
+                              {badgeCounts.openClaims > 99 ? '99+' : badgeCounts.openClaims}
+                            </span>
+                          )}
+                        </span>
+                      )}
+                    </button>
+                    
+                    {/* Expand/Collapse Button for Items with SubItems */}
+                    {!sidebarCollapsed && hasSubItems && (
+                      <button
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          console.log('Toggling category:', item.category);
+                          toggleCategory(item.category || '');
+                        }}
+                        className={`p-2 rounded-lg transition-all duration-200 ${
+                          isExpanded ? 'bg-gray-100 text-gray-700' : 'text-gray-400 hover:text-gray-600 hover:bg-gray-50'
+                        }`}
+                        title={isExpanded ? 'Collapse' : 'Expand'}
+                      >
+                        <FaChevronRight className={`w-3 h-3 transition-transform duration-200 ${isExpanded ? 'rotate-90' : ''}`} />
+                      </button>
+                    )}
+                  </div>
+                  
+                  {/* SubItems Dropdown */}
+                  {!sidebarCollapsed && hasSubItems && isExpanded && (
+                    <div className="ml-6 space-y-1">
+                      {item.subItems.map((subItem) => {
+                        const isSubActive = pathname === subItem.href;
+                        return (
+                          <button
+                            key={subItem.name}
+                            onClick={(e) => {
+                              e.preventDefault();
+                              e.stopPropagation();
+                              console.log('Clicked on sub-item:', subItem.name, 'href:', subItem.href);
+                              console.log('Sub-item event target:', e.target);
+                              router.push(subItem.href);
+                            }}
+                            className={`w-full flex items-center gap-3 px-3 py-2 rounded-lg transition-all duration-200 group cursor-pointer text-left ${
+                              isSubActive
+                                ? 'bg-blue-50 text-blue-700 border-l-2 border-blue-600'
+                                : 'text-gray-600 hover:bg-gray-50 hover:text-gray-700'
+                            }`}
+                            style={{ 
+                              pointerEvents: 'auto',
+                              position: 'relative',
+                              zIndex: 1003,
+                              userSelect: 'none'
+                            }}
+                          >
+                            <subItem.icon className={`w-3 h-3 ${isSubActive ? 'text-blue-600' : 'text-gray-400'}`} />
+                            <span className="text-sm font-medium">{subItem.name}</span>
+                          </button>
+                        );
+                      })}
+                    </div>
+                  )}
+                </div>
+              );
+            })}
+          </nav>
+
+          {/* Quick Actions - Only show for partners */}
+          {!sidebarCollapsed && user?.role === 'PARTNER' && (
+            <div className="p-4 border-t border-gray-200">
+              <div className="space-y-2">
+                <Link
+                  href="/partner/fleet/add"
+                  className="flex items-center gap-3 px-3 py-2 text-white bg-gradient-to-r from-blue-600 to-purple-600 rounded-lg hover:from-blue-700 hover:to-purple-700 transition-all duration-200 shadow-sm"
                 >
-                  <FaSignOutAlt className="w-4 h-4" />
-                  <span className="font-medium">Sign Out</span>
-                </button>
+                  <FaPlus className="w-4 h-4" />
+                  <span className="font-medium">Add Vehicle</span>
+                </Link>
               </div>
-
-              {/* Extra padding at bottom to ensure scrollability */}
-              <div className="h-4"></div>
             </div>
-          </div>
-        </>
-      )}
+          )}
 
-      {/* Desktop Sidebar - Hidden on mobile */}
-      <div id="partner-sidebar" className={`${isMobile ? 'hidden' : (sidebarCollapsed ? 'w-20' : 'w-72')} bg-white shadow-xl border-r border-gray-200 transition-all duration-300 flex flex-col relative z-[200]`}>
-        {/* Logo */}
-        <div className="p-6 border-b border-gray-200">
-          <div className="flex items-center justify-between">
-            {!sidebarCollapsed && (
-              <div>
-                <h1 className="text-xl font-bold text-gray-900">ComparePCO</h1>
-                <p className="text-sm text-gray-600">Partner Portal</p>
+          {/* Quick Actions for Staff with Fleet permissions */}
+          {!sidebarCollapsed && user?.role === 'PARTNER_STAFF' && userPermissions?.canManageFleet && (
+            <div className="p-4 border-t border-gray-200">
+              <div className="space-y-2">
+                <Link
+                  href="/partner/fleet/add"
+                  className="flex items-center gap-3 px-3 py-2 text-white bg-gradient-to-r from-blue-600 to-purple-600 rounded-lg hover:from-blue-700 hover:to-purple-700 transition-all duration-200 shadow-sm"
+                >
+                  <FaPlus className="w-4 h-4" />
+                  <span className="font-medium">Add Vehicle</span>
+                </Link>
               </div>
-            )}
+            </div>
+          )}
+
+          {/* Bottom Navigation */}
+          <div className="p-4 border-t border-gray-200 space-y-1">
+            {bottomNavigation.map((item) => {
+              const isActive = pathname.startsWith(item.href);
+              return (
+                <Link
+                  key={item.name}
+                  href={item.href}
+                  className={`flex items-center gap-3 px-3 py-2 rounded-lg transition-all duration-200 ${
+                    isActive
+                      ? `${item.bgColor} ${item.color}`
+                      : 'text-gray-600 hover:bg-gray-100'
+                  }`}
+                  title={sidebarCollapsed ? item.name : undefined}
+                >
+                  <item.icon className="w-4 h-4" />
+                  {!sidebarCollapsed && (
+                    <span className="font-medium">{item.name}</span>
+                  )}
+                </Link>
+              );
+            })}
+            
             <button
-              onClick={() => setSidebarCollapsed(!sidebarCollapsed)}
-              className="p-2 rounded-lg hover:bg-gray-100 transition-colors"
+              onClick={handleLogout}
+              className="w-full flex items-center gap-3 px-3 py-2 text-red-600 hover:bg-red-50 rounded-lg transition-all duration-200"
+              title={sidebarCollapsed ? "Sign Out" : undefined}
             >
-              {sidebarCollapsed ? <FaChevronRight /> : <FaChevronLeft />}
+              <FaSignOutAlt className="w-4 h-4" />
+              {!sidebarCollapsed && (
+                <span className="font-medium">Sign Out</span>
+              )}
             </button>
           </div>
         </div>
 
-        {/* User Profile */}
-        {!sidebarCollapsed && (
-          <div className="p-6 border-b border-gray-200">
-            <div className="flex items-center gap-3">
-              <div className="w-12 h-12 bg-gradient-to-br from-blue-500 to-purple-600 rounded-xl flex items-center justify-center text-white font-bold">
-                {(user as any)?.firstName?.[0] || user?.email?.[0] || 'P'}
-              </div>
-              <div className="flex-1 min-w-0">
-                <p className="font-semibold text-gray-900 truncate">
-                  {(user as any)?.firstName} {(user as any)?.lastName}
-                </p>
-                <p className="text-sm text-gray-600 truncate">{user?.email}</p>
-              </div>
-            </div>
-          </div>
-        )}
-
-        {/* Navigation */}
-        <nav className="flex-1 p-4 space-y-2 overflow-y-auto" style={{ zIndex: 1000, position: 'relative' }}>
-          {/*  Removed temporary debug buttons */}
-          
-          {filteredNavigation.map((item) => {
-            // Improved active state logic for maintenance pages
-            const isExactMatch = pathname === item.href;
-            const isActive = isExactMatch || (item.href !== '/partner' && pathname.startsWith(item.href));
-            const hasSubItems = item.subItems && item.subItems.length > 0;
-            const isExpanded = expandedCategories.has(item.category || '');
-            
-            // Special handling for maintenance pages to ensure proper active state
-            const isMaintenanceActive = item.category === 'maintenance' && pathname.startsWith('/partner/maintenance');
-            const finalIsActive = isMaintenanceActive || isActive;
-            
-            console.log('Navigation item:', item.name, 'href:', item.href, 'isActive:', finalIsActive, 'isMaintenanceActive:', isMaintenanceActive);
-            
-            return (
-              <div key={item.name} className="space-y-1" style={{ position: 'relative', zIndex: 1001 }}>
-                {/* Main Navigation Item */}
-                <div className="flex items-center">
+        {/* Main Content */}
+        <div className="flex-1 flex flex-col min-w-0 transition-all duration-300">
+          {/* Top Bar */}
+          <div className="bg-white shadow-sm border-b border-gray-200 px-4 sm:px-6 py-4">
+            <div className="flex items-center justify-between">
+              <div className="flex items-center gap-4">
+                {/* Mobile Hamburger Menu */}
+                {isMobile && (
                   <button
-                    onClick={(e) => {
-                      e.preventDefault();
-                      e.stopPropagation();
-                      console.log('Clicked on navigation item:', item.name, 'href:', item.href);
-                      console.log('Event target:', e.target);
-                      console.log('Event currentTarget:', e.currentTarget);
-                      console.log('About to navigate to:', item.href);
-                      router.push(item.href);
-                    }}
-                    onMouseDown={(e) => {
-                      console.log('Mouse down on:', item.name);
-                    }}
-                    onMouseUp={(e) => {
-                      console.log('Mouse up on:', item.name);
-                    }}
-                    className={`flex-1 flex items-center gap-3 px-3 py-3 rounded-xl transition-all duration-200 group cursor-pointer text-left ${
-                      finalIsActive
-                        ? `${item.bgColor} ${item.color} shadow-sm`
-                        : 'text-gray-700 hover:bg-gray-100'
-                    }`}
-                    title={sidebarCollapsed ? item.name : undefined}
-                    style={{ 
-                      pointerEvents: 'auto',
-                      position: 'relative',
-                      zIndex: 1002,
-                      userSelect: 'none'
-                    }}
+                    onClick={() => setShowMobileSidebar(true)}
+                    className="p-2 rounded-lg hover:bg-gray-100 transition-colors lg:hidden"
                   >
-                    <div className={`p-2 rounded-lg ${finalIsActive ? 'bg-white shadow-sm' : 'group-hover:bg-white group-hover:shadow-sm'} transition-all duration-200`}>
-                      <item.icon className={`w-4 h-4 ${finalIsActive ? item.color : 'text-gray-600'}`} />
-                    </div>
-                    {!sidebarCollapsed && (
-                      <span className="font-medium flex items-center gap-1">
-                        {item.name}
-                        {item.name === 'Notifications' && badgeCounts.unreadNotifications > 0 && (
-                          <span className="ml-1 inline-flex items-center justify-center text-xs font-semibold bg-blue-600 text-white rounded-full px-1.5">
-                            {badgeCounts.unreadNotifications > 99 ? '99+' : badgeCounts.unreadNotifications}
-                          </span>
-                        )}
-                        {item.name === 'Vehicle Claims' && badgeCounts.openClaims > 0 && (
-                          <span className="ml-1 inline-flex items-center justify-center text-xs font-semibold bg-amber-500 text-white rounded-full px-1.5">
-                            {badgeCounts.openClaims > 99 ? '99+' : badgeCounts.openClaims}
-                          </span>
-                        )}
+                    <FaBars className="w-5 h-5 text-gray-600" />
+                  </button>
+                )}
+                
+                <div>
+                  <h2 className="text-lg sm:text-xl font-semibold text-gray-900">
+                    {navigation.find(item => item.href === pathname)?.name || 'Partner Dashboard'}
+                  </h2>
+                  <p className="text-sm text-gray-600 hidden sm:block">
+                    Manage your fleet and bookings efficiently
+                  </p>
+                </div>
+              </div>
+              
+              <div className="flex items-center gap-2 sm:gap-4">
+                {/* Quick Links */}
+                <div className="hidden md:flex items-center gap-2">
+                  <Link
+                    href="/"
+                    className="p-2 text-gray-400 hover:text-gray-600 transition-colors"
+                    title="Go to Main Site"
+                  >
+                    <FaHome className="w-5 h-5" />
+                  </Link>
+                  <Link
+                    href="/partner/support"
+                    className="p-2 text-gray-400 hover:text-gray-600 transition-colors"
+                    title="Contact Support"
+                  >
+                    <FaPhone className="w-5 h-5" />
+                  </Link>
+                </div>
+
+                {/* Notifications */}
+                <div className="relative">
+                  <button 
+                    onClick={() => setShowNotifications(!showNotifications)}
+                    className="p-2 text-gray-400 hover:text-gray-600 transition-colors relative"
+                  >
+                    <FaBell className="w-5 h-5" />
+                    {badgeCounts.unreadNotifications > 0 && (
+                      <span className="absolute -top-1 -right-1 bg-red-500 text-white text-xs rounded-full h-5 w-5 flex items-center justify-center">
+                        {badgeCounts.unreadNotifications > 99 ? '99+' : badgeCounts.unreadNotifications}
                       </span>
                     )}
                   </button>
                   
-                  {/* Expand/Collapse Button for Items with SubItems */}
-                  {!sidebarCollapsed && hasSubItems && (
-                    <button
-                      onClick={(e) => {
-                        e.stopPropagation();
-                        console.log('Toggling category:', item.category);
-                        toggleCategory(item.category || '');
-                      }}
-                      className={`p-2 rounded-lg transition-all duration-200 ${
-                        isExpanded ? 'bg-gray-100 text-gray-700' : 'text-gray-400 hover:text-gray-600 hover:bg-gray-50'
-                      }`}
-                      title={isExpanded ? 'Collapse' : 'Expand'}
-                    >
-                      <FaChevronRight className={`w-3 h-3 transition-transform duration-200 ${isExpanded ? 'rotate-90' : ''}`} />
-                    </button>
-                  )}
-                </div>
-                
-                {/* SubItems Dropdown */}
-                {!sidebarCollapsed && hasSubItems && isExpanded && (
-                  <div className="ml-6 space-y-1">
-                    {item.subItems.map((subItem) => {
-                      const isSubActive = pathname === subItem.href;
-                      return (
-                        <button
-                          key={subItem.name}
-                          onClick={(e) => {
-                            e.preventDefault();
-                            e.stopPropagation();
-                            console.log('Clicked on sub-item:', subItem.name, 'href:', subItem.href);
-                            console.log('Sub-item event target:', e.target);
-                            router.push(subItem.href);
-                          }}
-                          className={`w-full flex items-center gap-3 px-3 py-2 rounded-lg transition-all duration-200 group cursor-pointer text-left ${
-                            isSubActive
-                              ? 'bg-blue-50 text-blue-700 border-l-2 border-blue-600'
-                              : 'text-gray-600 hover:bg-gray-50 hover:text-gray-700'
-                          }`}
-                          style={{ 
-                            pointerEvents: 'auto',
-                            position: 'relative',
-                            zIndex: 1003,
-                            userSelect: 'none'
-                          }}
-                        >
-                          <subItem.icon className={`w-3 h-3 ${isSubActive ? 'text-blue-600' : 'text-gray-400'}`} />
-                          <span className="text-sm font-medium">{subItem.name}</span>
-                        </button>
-                      );
-                    })}
-                  </div>
-                )}
-              </div>
-            );
-          })}
-        </nav>
-
-        {/* Quick Actions - Only show for partners */}
-        {!sidebarCollapsed && user?.role === 'PARTNER' && (
-          <div className="p-4 border-t border-gray-200">
-            <div className="space-y-2">
-              <Link
-                href="/partner/fleet/add"
-                className="flex items-center gap-3 px-3 py-2 text-white bg-gradient-to-r from-blue-600 to-purple-600 rounded-lg hover:from-blue-700 hover:to-purple-700 transition-all duration-200 shadow-sm"
-              >
-                <FaPlus className="w-4 h-4" />
-                <span className="font-medium">Add Vehicle</span>
-              </Link>
-            </div>
-          </div>
-        )}
-
-        {/* Quick Actions for Staff with Fleet permissions */}
-        {!sidebarCollapsed && user?.role === 'PARTNER_STAFF' && userPermissions?.canManageFleet && (
-          <div className="p-4 border-t border-gray-200">
-            <div className="space-y-2">
-              <Link
-                href="/partner/fleet/add"
-                className="flex items-center gap-3 px-3 py-2 text-white bg-gradient-to-r from-blue-600 to-purple-600 rounded-lg hover:from-blue-700 hover:to-purple-700 transition-all duration-200 shadow-sm"
-              >
-                <FaPlus className="w-4 h-4" />
-                <span className="font-medium">Add Vehicle</span>
-              </Link>
-            </div>
-          </div>
-        )}
-
-        {/* Bottom Navigation */}
-        <div className="p-4 border-t border-gray-200 space-y-1">
-          {bottomNavigation.map((item) => {
-            const isActive = pathname.startsWith(item.href);
-            return (
-              <Link
-                key={item.name}
-                href={item.href}
-                className={`flex items-center gap-3 px-3 py-2 rounded-lg transition-all duration-200 ${
-                  isActive
-                    ? `${item.bgColor} ${item.color}`
-                    : 'text-gray-600 hover:bg-gray-100'
-                }`}
-                title={sidebarCollapsed ? item.name : undefined}
-              >
-                <item.icon className="w-4 h-4" />
-                {!sidebarCollapsed && (
-                  <span className="font-medium">{item.name}</span>
-                )}
-              </Link>
-            );
-          })}
-          
-          <button
-            onClick={handleLogout}
-            className="w-full flex items-center gap-3 px-3 py-2 text-red-600 hover:bg-red-50 rounded-lg transition-all duration-200"
-            title={sidebarCollapsed ? "Sign Out" : undefined}
-          >
-            <FaSignOutAlt className="w-4 h-4" />
-            {!sidebarCollapsed && (
-              <span className="font-medium">Sign Out</span>
-            )}
-          </button>
-        </div>
-      </div>
-
-      {/* Main Content */}
-      <div className="flex-1 flex flex-col min-w-0 transition-all duration-300">
-        {/* Top Bar */}
-        <div className="bg-white shadow-sm border-b border-gray-200 px-4 sm:px-6 py-4">
-          <div className="flex items-center justify-between">
-            <div className="flex items-center gap-4">
-              {/* Mobile Hamburger Menu */}
-              {isMobile && (
-                <button
-                  onClick={() => setShowMobileSidebar(true)}
-                  className="p-2 rounded-lg hover:bg-gray-100 transition-colors lg:hidden"
-                >
-                  <FaBars className="w-5 h-5 text-gray-600" />
-                </button>
-              )}
-              
-              <div>
-                <h2 className="text-lg sm:text-xl font-semibold text-gray-900">
-                  {navigation.find(item => item.href === pathname)?.name || 'Partner Dashboard'}
-                </h2>
-                <p className="text-sm text-gray-600 hidden sm:block">
-                  Manage your fleet and bookings efficiently
-                </p>
-              </div>
-            </div>
-            
-            <div className="flex items-center gap-2 sm:gap-4">
-              {/* Quick Links */}
-              <div className="hidden md:flex items-center gap-2">
-                <Link
-                  href="/"
-                  className="p-2 text-gray-400 hover:text-gray-600 transition-colors"
-                  title="Go to Main Site"
-                >
-                  <FaHome className="w-5 h-5" />
-                </Link>
-                <Link
-                  href="/partner/support"
-                  className="p-2 text-gray-400 hover:text-gray-600 transition-colors"
-                  title="Contact Support"
-                >
-                  <FaPhone className="w-5 h-5" />
-                </Link>
-              </div>
-
-              {/* Notifications */}
-              <div className="relative">
-                <button 
-                  onClick={() => setShowNotifications(!showNotifications)}
-                  className="p-2 text-gray-400 hover:text-gray-600 transition-colors relative"
-                >
-                  <FaBell className="w-5 h-5" />
-                  {badgeCounts.unreadNotifications > 0 && (
-                    <span className="absolute -top-1 -right-1 bg-red-500 text-white text-xs rounded-full h-5 w-5 flex items-center justify-center">
-                      {badgeCounts.unreadNotifications > 99 ? '99+' : badgeCounts.unreadNotifications}
-                    </span>
-                  )}
-                </button>
-                
-                {/* Notifications Dropdown */}
-                {showNotifications && (
-                  <div className="absolute right-0 mt-2 w-80 bg-white rounded-lg shadow-xl border border-gray-200 z-20">
-                    <div className="p-4 border-b border-gray-200">
-                      <h3 className="font-semibold text-gray-900">Notifications</h3>
-                    </div>
-                    <div className="max-h-96 overflow-y-auto">
-                      {notifications.length === 0 ? (
-                        <div className="p-4 text-center text-gray-500">
-                          No notifications
-                        </div>
-                      ) : (
-                        notifications.map(notification => (
-                          <div key={notification.id} className="p-4 border-b border-gray-100 hover:bg-gray-50">
-                            <div className="flex items-start gap-3">
-                              <div className={`w-2 h-2 rounded-full mt-2 ${
-                                notification.type === 'success' ? 'bg-green-500' :
-                                notification.type === 'warning' ? 'bg-yellow-500' :
-                                notification.type === 'error' ? 'bg-red-500' : 'bg-blue-500'
-                              }`}></div>
-                              <div className="flex-1">
-                                <p className="font-medium text-gray-900 text-sm">
-                                  {notification.title}
-                                </p>
-                                <p className="text-gray-600 text-xs mt-1">
-                                  {notification.message}
-                                </p>
-                                <p className="text-gray-400 text-xs mt-2">
-                                  {new Date(notification.createdAt).toLocaleDateString()}
-                                </p>
+                  {/* Notifications Dropdown */}
+                  {showNotifications && (
+                    <div className="absolute right-0 mt-2 w-80 bg-white rounded-lg shadow-xl border border-gray-200 z-20">
+                      <div className="p-4 border-b border-gray-200">
+                        <h3 className="font-semibold text-gray-900">Notifications</h3>
+                      </div>
+                      <div className="max-h-96 overflow-y-auto">
+                        {notifications.length === 0 ? (
+                          <div className="p-4 text-center text-gray-500">
+                            No notifications
+                          </div>
+                        ) : (
+                          notifications.map(notification => (
+                            <div key={notification.id} className="p-4 border-b border-gray-100 hover:bg-gray-50">
+                              <div className="flex items-start gap-3">
+                                <div className={`w-2 h-2 rounded-full mt-2 ${
+                                  notification.type === 'success' ? 'bg-green-500' :
+                                  notification.type === 'warning' ? 'bg-yellow-500' :
+                                  notification.type === 'error' ? 'bg-red-500' : 'bg-blue-500'
+                                }`}></div>
+                                <div className="flex-1">
+                                  <p className="font-medium text-gray-900 text-sm">
+                                    {notification.title}
+                                  </p>
+                                  <p className="text-gray-600 text-xs mt-1">
+                                    {notification.message}
+                                  </p>
+                                  <p className="text-gray-400 text-xs mt-2">
+                                    {new Date(notification.createdAt).toLocaleDateString()}
+                                  </p>
+                                </div>
                               </div>
                             </div>
-                          </div>
-                        ))
-                      )}
+                          ))
+                        )}
+                      </div>
                     </div>
-                  </div>
-                )}
+                  )}
+                </div>
               </div>
             </div>
           </div>
+
+          {/* Page Content */}
+          <main className="flex-1 min-h-screen bg-gray-50 mobile-bottom-padding">
+            {children}
+          </main>
         </div>
 
-        {/* Page Content */}
-        <main className="flex-1 min-h-screen bg-gray-50 mobile-bottom-padding">
-          {children}
-        </main>
-      </div>
-
-      {/* Enhanced Mobile Bottom Navigation */}
-      {!showMobileSidebar && (
-        <div className="lg:hidden fixed bottom-0 left-0 right-0 bg-white border-t border-gray-200 z-40 safe-area-pb transition-all duration-300">
-          <div className="flex justify-around px-2 py-2">
-            {[ 
-              { href: '/partner', icon: FaTachometerAlt, label: 'Dashboard' },
-              { href: '/partner/fleet', icon: FaCar, label: 'Fleet' },
-              { href: '/partner/bookings', icon: FaCalendarAlt, label: 'Bookings' },
-              { href: '/partner/profile', icon: FaUser, label: 'Profile' }
-            ].map((item) => {
-              const isActive = pathname.startsWith(item.href);
-              return (
-                <Link
-                  key={item.href}
-                  href={item.href}
-                  className={`flex flex-col items-center justify-center py-1 px-2 transition-colors rounded-lg ${
-                    isActive
-                      ? 'text-blue-600 bg-blue-50'
-                      : 'text-gray-600 hover:text-gray-900 hover:bg-gray-50'
-                  }`}
-                >
-                  <item.icon className="text-lg mb-1" />
-                  <span className="text-xs font-medium leading-none">{item.label}</span>
-                </Link>
-              );
-            })}
+        {/* Enhanced Mobile Bottom Navigation */}
+        {!showMobileSidebar && (
+          <div className="lg:hidden fixed bottom-0 left-0 right-0 bg-white border-t border-gray-200 z-40 safe-area-pb transition-all duration-300">
+            <div className="flex justify-around px-2 py-2">
+              {[ 
+                { href: '/partner', icon: FaTachometerAlt, label: 'Dashboard' },
+                { href: '/partner/fleet', icon: FaCar, label: 'Fleet' },
+                { href: '/partner/bookings', icon: FaCalendarAlt, label: 'Bookings' },
+                { href: '/partner/profile', icon: FaUser, label: 'Profile' }
+              ].map((item) => {
+                const isActive = pathname.startsWith(item.href);
+                return (
+                  <Link
+                    key={item.href}
+                    href={item.href}
+                    className={`flex flex-col items-center justify-center py-1 px-2 transition-colors rounded-lg ${
+                      isActive
+                        ? 'text-blue-600 bg-blue-50'
+                        : 'text-gray-600 hover:text-gray-900 hover:bg-gray-50'
+                    }`}
+                  >
+                    <item.icon className="text-lg mb-1" />
+                    <span className="text-xs font-medium leading-none">{item.label}</span>
+                  </Link>
+                );
+              })}
+            </div>
           </div>
-        </div>
-      )}
+        )}
 
-      {/* Click outside to close notifications */}
-      {showNotifications && (
-        <div 
-          className="fixed inset-0 z-40" 
-          onClick={() => setShowNotifications(false)}
-        />
-      )}
+        {/* Click outside to close notifications */}
+        {showNotifications && (
+          <div 
+            className="fixed inset-0 z-40" 
+            onClick={() => setShowNotifications(false)}
+          />
+        )}
 
-      {/* Enhanced Mobile Styles */}
-      <style jsx global>{`
-        @media (max-width: 1024px) {
-          .mobile-bottom-padding {
-            padding-bottom: 80px;
+        {/* Enhanced Mobile Styles */}
+        <style jsx global>{`
+          @media (max-width: 1024px) {
+            .mobile-bottom-padding {
+              padding-bottom: 80px;
+            }
+            
+            .safe-area-pb {
+              padding-bottom: env(safe-area-inset-bottom);
+            }
           }
           
-          .safe-area-pb {
-            padding-bottom: env(safe-area-inset-bottom);
+          /* Smooth transitions for mobile sidebar */
+          .mobile-sidebar-enter {
+            transform: translateX(-100%);
           }
-        }
+          
+          .mobile-sidebar-enter-active {
+            transform: translateX(0);
+            transition: transform 300ms ease-in-out;
+          }
+          
+          .mobile-sidebar-exit {
+            transform: translateX(0);
+          }
+          
+          .mobile-sidebar-exit-active {
+            transform: translateX(-100%);
+            transition: transform 300ms ease-in-out;
+          }
+          
+          /* Enhanced blur effect for mobile sidebar overlay */
+          .backdrop-blur-sm {
+            backdrop-filter: blur(4px);
+            -webkit-backdrop-filter: blur(4px);
+          }
+        `}</style>
         
-        /* Smooth transitions for mobile sidebar */
-        .mobile-sidebar-enter {
-          transform: translateX(-100%);
-        }
-        
-        .mobile-sidebar-enter-active {
-          transform: translateX(0);
-          transition: transform 300ms ease-in-out;
-        }
-        
-        .mobile-sidebar-exit {
-          transform: translateX(0);
-        }
-        
-        .mobile-sidebar-exit-active {
-          transform: translateX(-100%);
-          transition: transform 300ms ease-in-out;
-        }
-        
-        /* Enhanced blur effect for mobile sidebar overlay */
-        .backdrop-blur-sm {
-          backdrop-filter: blur(4px);
-          -webkit-backdrop-filter: blur(4px);
-        }
-      `}</style>
-      
-      {/* Live Chat Widget */}
-      <LiveChatWidget />
-    </div>
+        {/* Live Chat Widget */}
+        <LiveChatWidget />
+      </div>
+    </SidebarProvider>
   );
 } 

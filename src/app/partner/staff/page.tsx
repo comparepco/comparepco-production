@@ -1,16 +1,15 @@
 'use client';
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { useAuth } from '@/contexts/AuthContext';
 import { useRouter } from 'next/navigation';
 import { 
-  FaUsers, FaPlus, FaEdit, FaTrash, FaEye, FaSearch, FaUserPlus,
-  FaPhone, FaEnvelope, FaIdCard, FaCheckCircle, FaTimes, FaClock,
-  FaShieldAlt, FaKey, FaLock, FaUserShield, FaExclamationTriangle,
-  FaStar, FaCalendarAlt, FaMapMarkerAlt, FaUserTie, FaCog, FaFileAlt,
-  FaBell, FaHistory, FaChartLine, FaUserEdit, FaCar, FaMoneyBillWave,
-  FaFilter, FaSort, FaChevronDown, FaCog as FaSettings,
-  FaBuilding, FaUserGraduate, FaBriefcase, FaAddressCard, FaNotesMedical
+  FaUsers, FaPlus, FaEdit, FaTrash, FaSearch, FaFilter, FaDownload,
+  FaUserTie, FaEnvelope, FaPhone, FaCalendarAlt, FaShieldAlt,
+  FaCheckCircle, FaTimes, FaEye, FaUserPlus, FaLock, FaUnlock,
+  FaChartLine, FaUserShield, FaClock, FaChevronDown, FaExclamationTriangle
 } from 'react-icons/fa';
+import { createClient } from '@supabase/supabase-js';
+import { useSidebar } from '@/contexts/SidebarContext';
 import StaffCard from '@/components/partner/StaffCard';
 import StaffForm from '@/components/partner/StaffForm';
 
@@ -46,6 +45,7 @@ interface StaffMember {
 export default function StaffPage() {
   const { user, loading: authLoading } = useAuth();
   const router = useRouter();
+  const { sidebarLeft } = useSidebar();
   const [loading, setLoading] = useState(true);
   const [staff, setStaff] = useState<StaffMember[]>([]);
   const [filteredStaff, setFilteredStaff] = useState<StaffMember[]>([]);
@@ -542,6 +542,7 @@ export default function StaffPage() {
         <>
           <div 
             className="fixed inset-0 z-40 bg-black bg-opacity-50 backdrop-blur-sm"
+            style={{ left: sidebarLeft }}
             onClick={() => setShowDetails(false)}
           />
           
@@ -624,6 +625,7 @@ export default function StaffPage() {
         <>
           <div 
             className="fixed inset-0 z-40 bg-black bg-opacity-50 backdrop-blur-sm"
+            style={{ left: sidebarLeft }}
             onClick={() => setShowPermissions(false)}
           />
           

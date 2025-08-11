@@ -20,6 +20,7 @@ import {
   FaTools
 } from 'react-icons/fa';
 import { createClient } from '@supabase/supabase-js';
+import { useSidebar } from '@/contexts/SidebarContext';
 
 const supabase = createClient(
   process.env.NEXT_PUBLIC_SUPABASE_URL!,
@@ -49,6 +50,7 @@ export default function PartsInventoryPage() {
   const { user, loading: authLoading } = useAuth();
   const router = useRouter();
   const didInitRef = React.useRef(false);
+  const { sidebarLeft } = useSidebar();
 
   const [parts, setParts] = useState<Part[]>([]);
   const [filtered, setFiltered] = useState<Part[]>([]);
@@ -507,7 +509,7 @@ export default function PartsInventoryPage() {
         <>
           <div
             className="fixed inset-0 bg-black bg-opacity-50 z-40"
-            style={{ left: (typeof window !== 'undefined' ? (document.getElementById('partner-sidebar')?.offsetWidth || 0) : 0) }}
+            style={{ left: sidebarLeft }}
             onClick={() => setShowForm(false)}
           />
           <div className="fixed inset-0 flex items-center justify-center p-4 z-50">

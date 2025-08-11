@@ -1,11 +1,11 @@
 'use client';
-import React, { useEffect, useState } from 'react';
+import * as React from 'react';
+import { useEffect, useState, useCallback } from 'react';
 import { useAuth } from '@/contexts/AuthContext';
 import { useRouter } from 'next/navigation';
 import {
   FaWrench,
   FaSearch,
-  FaFilter,
   FaDownload,
   FaPlus,
   FaEdit,
@@ -17,13 +17,10 @@ import {
   FaClock,
   FaCheckCircle,
   FaExclamationTriangle,
-  FaUser,
-  FaBuilding,
-  FaTools,
-  FaCar,
-  FaShieldAlt
+  FaUser
 } from 'react-icons/fa';
 import { createClient } from '@supabase/supabase-js';
+import { useSidebar } from '@/contexts/SidebarContext';
 
 const supabase = createClient(
   process.env.NEXT_PUBLIC_SUPABASE_URL!,
@@ -62,6 +59,7 @@ export default function ServiceProvidersPage() {
   const { user, loading: authLoading } = useAuth();
   const router = useRouter();
   const didInitRef = React.useRef(false);
+  const { sidebarLeft } = useSidebar();
 
   const [providers, setProviders] = useState<ServiceProvider[]>([]);
   const [filtered, setFiltered] = useState<ServiceProvider[]>([]);
@@ -76,22 +74,42 @@ export default function ServiceProvidersPage() {
   const [serviceFilter, setServiceFilter] = useState('all');
 
   // Form data
-  const [formData, setFormData] = useState({
+  const [formData, setFormData] = useState<{
+    name: string;
+    type: ServiceProvider['type'];
+    contact_person: string;
+    phone: string;
+    email: string;
+    address: string;
+    city: string;
+    postcode: string;
+    services: string[];
+    specializations: string[];
+    rating: number;
+    response_time_hours: number;
+    availability: ServiceProvider['availability'];
+    payment_methods: string[];
+    certifications: string[];
+    insurance_coverage: boolean;
+    warranty_offered: boolean;
+    emergency_service: boolean;
+    notes: string;
+  }>({
     name: '',
-    type: 'garage' as const,
+    type: 'garage',
     contact_person: '',
     phone: '',
     email: '',
     address: '',
     city: '',
     postcode: '',
-    services: [] as string[],
-    specializations: [] as string[],
+    services: [],
+    specializations: [],
     rating: 0,
     response_time_hours: 24,
-    availability: 'business_hours' as const,
-    payment_methods: [] as string[],
-    certifications: [] as string[],
+    availability: 'business_hours',
+    payment_methods: [],
+    certifications: [],
     insurance_coverage: false,
     warranty_offered: false,
     emergency_service: false,
@@ -124,14 +142,7 @@ export default function ServiceProvidersPage() {
     'Wheel Alignment'
   ];
 
-  const paymentMethods = [
-    'Cash',
-    'Card',
-    'Bank Transfer',
-    'Invoice',
-    'Credit Account',
-    'Insurance Direct'
-  ];
+
 
   const getPartnerId = async () => {
     if (!user) return null;
@@ -310,7 +321,7 @@ export default function ServiceProvidersPage() {
   const resetForm = () => {
     setFormData({
       name: '',
-      type: 'garage',
+      type: 'garage' as ServiceProvider['type'],
       contact_person: '',
       phone: '',
       email: '',
@@ -321,7 +332,7 @@ export default function ServiceProvidersPage() {
       specializations: [],
       rating: 0,
       response_time_hours: 24,
-      availability: 'business_hours',
+      availability: 'business_hours' as ServiceProvider['availability'],
       payment_methods: [],
       certifications: [],
       insurance_coverage: false,
@@ -641,7 +652,7 @@ export default function ServiceProvidersPage() {
         <>
           <div
             className="fixed inset-0 bg-black bg-opacity-50 z-40"
-            style={{ left: (typeof window !== 'undefined' ? (document.getElementById('partner-sidebar')?.offsetWidth || 0) : 0) }}
+            style={{ left: sidebarLeft }}
             onClick={() => setShowForm(false)}
           />
           <div className="fixed inset-0 flex items-center justify-center p-4 z-50">

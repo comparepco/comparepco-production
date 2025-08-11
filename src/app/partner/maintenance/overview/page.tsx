@@ -13,6 +13,7 @@ import {
   FaFileAlt, FaBarcode, FaPhone, FaStar, FaTachometerAlt
 } from 'react-icons/fa';
 import { createClient } from '@supabase/supabase-js';
+import { useSidebar } from '@/contexts/SidebarContext';
 
 const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL!;
 const supabaseKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!;
@@ -116,6 +117,7 @@ export default function MaintenanceOverviewPage() {
   const [carFilter, setCarFilter] = useState('');
   const [dateRange, setDateRange] = useState({ start: '', end: '' });
   const [viewMode, setViewMode] = useState<'calendar' | 'list'>('list');
+  const { sidebarLeft } = useSidebar();
 
   const [formData, setFormData] = useState({
     carId: '',
@@ -135,17 +137,7 @@ export default function MaintenanceOverviewPage() {
     notes: ''
   });
 
-  // Sidebar width for modal overlay safety
-  const [sidebarLeft, setSidebarLeft] = useState(0);
-  useEffect(() => {
-    const updateLeft = () => {
-      const el = typeof window !== 'undefined' ? document.getElementById('partner-sidebar') : null;
-      setSidebarLeft(el?.offsetWidth || 0);
-    };
-    updateLeft();
-    window.addEventListener('resize', updateLeft);
-    return () => window.removeEventListener('resize', updateLeft);
-  }, []);
+
 
   useEffect(() => {
     if (authLoading || didInitRef.current) return;
