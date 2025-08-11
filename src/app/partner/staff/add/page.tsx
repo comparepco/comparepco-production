@@ -371,7 +371,7 @@ export default function AddStaffPage() {
           last_name: formData.last_name,
           email: formData.email,
           phone: formData.phone,
-          role: 'partner_staff',
+          role: 'PARTNER_STAFF',
           is_active: true,
           is_verified: true
         });

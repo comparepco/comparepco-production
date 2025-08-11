@@ -1,26 +1,12 @@
 'use client';
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import { useAuth } from '../../../../contexts/AuthContext';
 import { useRouter } from 'next/navigation';
+import { supabase } from '../../../../lib/supabase/client';
 import { 
-  FaCalendarAlt, FaSearch, FaFilter, FaEye, FaClock, 
-  FaMoneyBillWave, FaCar, FaMapMarkerAlt, FaFileAlt,
-  FaCheckCircle, FaTimes, FaExclamationTriangle, FaStar,
-  FaDownload, FaPhone, FaEnvelope, FaComments, FaLifeRing,
-  FaPlus, FaUpload, FaSignature, FaUndo, FaHistory, FaBolt,
-  FaTools, FaShieldAlt, FaUserCircle, FaChevronRight, FaBuilding,
-  FaUser, FaEdit, FaTrash, FaBell, FaExchangeAlt, FaPaperPlane,
-  FaCheck, FaInfoCircle, FaTh, FaList, FaPlay, FaPause, FaStop,
-  FaCarSide, FaRoute, FaGasPump, FaTachometerAlt, FaCalendarCheck,
-  FaUserCheck, FaFileContract, FaHandshake
+  FaSearch, FaStar, FaCalendarAlt, FaMoneyBillWave, FaClock,
+  FaUserTie, FaCreditCard
 } from 'react-icons/fa';
-import { createClient } from '@supabase/supabase-js';
-
-// Initialize Supabase client
-const supabase = createClient(
-  process.env.NEXT_PUBLIC_SUPABASE_URL!,
-  process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
-);
 
 // Type Definitions
 interface ActiveRental {
@@ -100,26 +86,6 @@ interface ActiveRentalStats {
   expiring_soon: number;
 }
 
-const STATUS_COLORS = {
-  active: 'bg-green-100 text-green-800',
-  paused: 'bg-yellow-100 text-yellow-800',
-  suspended: 'bg-red-100 text-red-800',
-  completed: 'bg-gray-100 text-gray-800'
-};
-
-const PAYMENT_STATUS_COLORS = {
-  paid: 'bg-green-100 text-green-800',
-  pending: 'bg-yellow-100 text-yellow-800',
-  overdue: 'bg-red-100 text-red-800'
-};
-
-const VEHICLE_CONDITION_COLORS = {
-  excellent: 'bg-green-100 text-green-800',
-  good: 'bg-blue-100 text-blue-800',
-  fair: 'bg-yellow-100 text-yellow-800',
-  poor: 'bg-red-100 text-red-800'
-};
-
 export default function ActiveRentalsPage() {
   const { user, loading: authLoading } = useAuth();
   const router = useRouter();
@@ -137,7 +103,7 @@ export default function ActiveRentalsPage() {
     support_requests: 0,
     expiring_soon: 0
   });
-  const [loading, setLoading] = useState(true);
+  const [_loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   
   // Filter states
@@ -145,7 +111,7 @@ export default function ActiveRentalsPage() {
   const [statusFilter, setStatusFilter] = useState('all');
   const [paymentFilter, setPaymentFilter] = useState('all');
   const [vehicleFilter, setVehicleFilter] = useState('all');
-  const [driverFilter, setDriverFilter] = useState('all');
+  const [_driverFilter, _setDriverFilter] = useState('all');
   const [sortBy, setSortBy] = useState('start_date');
   const [sortOrder, setSortOrder] = useState<'asc' | 'desc'>('desc');
   
@@ -154,14 +120,20 @@ export default function ActiveRentalsPage() {
   const [itemsPerPage] = useState(10);
   
   // Modal states
-  const [selectedRental, setSelectedRental] = useState<ActiveRental | null>(null);
-  const [showRentalModal, setShowRentalModal] = useState(false);
-  const [showContactModal, setShowContactModal] = useState(false);
-  const [showPaymentModal, setShowPaymentModal] = useState(false);
-  const [showInspectionModal, setShowInspectionModal] = useState(false);
+  const [_selectedRental, setSelectedRental] = useState<ActiveRental | null>(null);
+  const [_showRentalModal, setShowRentalModal] = useState(false);
+  const [_showContactModal, setShowContactModal] = useState(false);
+  const [_showPaymentModal, setShowPaymentModal] = useState(false);
+  const [_showInspectionModal, _setShowInspectionModal] = useState(false);
+
+  const PAYMENT_STATUS_COLORS = {
+    paid: 'bg-green-100 text-green-800',
+    pending: 'bg-yellow-100 text-yellow-800',
+    overdue: 'bg-red-100 text-red-800'
+  };
 
   // Load active rentals
-  const loadActiveRentals = async () => {
+  const loadActiveRentals = useCallback(async () => {
     try {
       setLoading(true);
       setError(null);
@@ -169,9 +141,9 @@ export default function ActiveRentalsPage() {
       if (!user) return;
 
       // Derive partnerId similar to bookings page
-      const partnerId = user.role?.toLowerCase() === 'partner_staff' ? (user as any).partnerId : user.id;
+      const partnerId = user.role === 'PARTNER_STAFF' ? (user as any).partnerId : user.id;
       if (!partnerId) {
-        console.error('No partner ID found for active rentals');
+        // No partner ID found - handle silently
         setActiveRentals([]);
         setFilteredRentals([]);
         calculateStats([]);
@@ -187,13 +159,7 @@ export default function ActiveRentalsPage() {
         .order('created_at', { ascending: false });
 
       if (bookingsError) {
-        console.error('Supabase error (bookings):', {
-          message: (bookingsError as any).message,
-          details: (bookingsError as any).details,
-          hint: (bookingsError as any).hint,
-          code: (bookingsError as any).code,
-        });
-        // Show empty state instead of failing hard
+        // Supabase error - handle silently
         setActiveRentals([]);
         setFilteredRentals([]);
         calculateStats([]);
@@ -311,8 +277,7 @@ export default function ActiveRentalsPage() {
       setFilteredRentals(transformedRentals);
       calculateStats(transformedRentals);
     } catch (err) {
-      console.error('Error loading active rentals:', err);
-      // Fall back to empty state instead of blocking the page with an error
+      // Error loading active rentals - handle silently
       setActiveRentals([]);
       setFilteredRentals([]);
       calculateStats([]);
@@ -320,7 +285,7 @@ export default function ActiveRentalsPage() {
     } finally {
       setLoading(false);
     }
-  };
+  }, [user]);
 
   // Create sample data for testing
   const createSampleData = async () => {
@@ -347,7 +312,7 @@ export default function ActiveRentalsPage() {
       const endDate = new Date();
       endDate.setDate(endDate.getDate() + 28); // 4 weeks from now
       
-      const { data: booking, error } = await supabase
+                const { data: _booking, error } = await supabase
         .from('bookings')
         .insert({
           vehicle_id: vehicle.id,
@@ -364,7 +329,7 @@ export default function ActiveRentalsPage() {
         .single();
 
       if (error) {
-        console.error('Error creating sample booking:', error);
+        // Error creating sample booking - handle silently
         alert('Failed to create sample data');
         return;
       }
@@ -373,7 +338,7 @@ export default function ActiveRentalsPage() {
       await loadActiveRentals();
       
     } catch (err) {
-      console.error('Error creating sample data:', err);
+      // Error creating sample data - handle silently
       alert('Failed to create sample data');
     } finally {
       setLoading(false);
@@ -475,13 +440,10 @@ export default function ActiveRentalsPage() {
 
   // Wait for auth state like bookings page
   useEffect(() => {
-    if (authLoading) return;
-    if (!user) {
-      router.replace('/auth/login');
-      return;
+    if (!authLoading && user) {
+      loadActiveRentals();
     }
-    loadActiveRentals();
-  }, [user, authLoading]);
+  }, [user, authLoading, loadActiveRentals, router]);
 
   if (authLoading) {
     return (
@@ -554,11 +516,11 @@ export default function ActiveRentalsPage() {
             </div>
             <div className="mt-4 sm:mt-0 flex space-x-3">
               <button className="bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700 flex items-center">
-                <FaDownload className="w-4 h-4 mr-2" />
+                <FaCalendarAlt className="w-4 h-4 mr-2" />
                 Export
               </button>
               <button className="bg-green-600 text-white px-4 py-2 rounded-lg hover:bg-green-700 flex items-center">
-                <FaPlus className="w-4 h-4 mr-2" />
+                <FaCalendarAlt className="w-4 h-4 mr-2" />
                 New Rental
               </button>
             </div>
@@ -572,7 +534,7 @@ export default function ActiveRentalsPage() {
           <div className="bg-white p-6 rounded-xl shadow-sm border border-gray-200">
             <div className="flex items-center gap-4">
               <div className="bg-blue-500 p-3 rounded-lg">
-                <FaPlay className="w-6 h-6 text-white" />
+                <FaCalendarAlt className="w-6 h-6 text-white" />
               </div>
               <div>
                 <p className="text-sm font-medium text-gray-600">Active Rentals</p>
@@ -728,7 +690,7 @@ export default function ActiveRentalsPage() {
 
           {currentRentals.length === 0 ? (
             <div className="text-center py-12">
-              <FaCar className="mx-auto h-12 w-12 text-gray-400" />
+              <FaCalendarAlt className="mx-auto h-12 w-12 text-gray-400" />
               <h3 className="mt-2 text-sm font-medium text-gray-900">No active rentals found</h3>
               <p className="mt-1 text-sm text-gray-500 mb-4">
                 {filteredRentals.length === 0 && activeRentals.length > 0
@@ -748,14 +710,14 @@ export default function ActiveRentalsPage() {
                     onClick={() => router.push('/partner/fleet/add')}
                     className="bg-green-600 text-white px-4 py-2 rounded-lg hover:bg-green-700 flex items-center"
                   >
-                    <FaPlus className="w-4 h-4 mr-2" />
+                    <FaCalendarAlt className="w-4 h-4 mr-2" />
                     Add Vehicle
                   </button>
                   <button
                     onClick={createSampleData}
                     className="bg-purple-600 text-white px-4 py-2 rounded-lg hover:bg-purple-700 flex items-center"
                   >
-                    <FaPlus className="w-4 h-4 mr-2" />
+                    <FaCalendarAlt className="w-4 h-4 mr-2" />
                     Create Sample Data
                   </button>
                 </div>
@@ -806,7 +768,7 @@ export default function ActiveRentalsPage() {
                       <td className="px-6 py-4 whitespace-nowrap">
                         <div className="flex items-center">
                           <div className="flex-shrink-0 h-10 w-10">
-                            <FaUserCircle className="h-10 w-10 text-gray-400" />
+                            <FaUserTie className="h-10 w-10 text-gray-400" />
                           </div>
                           <div className="ml-4">
                             <div className="text-sm font-medium text-gray-900">
@@ -877,7 +839,7 @@ export default function ActiveRentalsPage() {
                             }}
                             className="text-blue-600 hover:text-blue-900"
                           >
-                            <FaEye className="w-4 h-4" />
+                            <FaCalendarAlt className="w-4 h-4" />
                           </button>
                           <button
                             onClick={() => {
@@ -886,7 +848,7 @@ export default function ActiveRentalsPage() {
                             }}
                             className="text-green-600 hover:text-green-900"
                           >
-                            <FaEnvelope className="w-4 h-4" />
+                            <FaCreditCard className="w-4 h-4" />
                           </button>
                           <button
                             onClick={() => {

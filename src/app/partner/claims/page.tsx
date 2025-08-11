@@ -617,23 +617,23 @@ export default function PartnerClaimsPage() {
   useEffect(() => {
     const resolvePartner = async () => {
       if (!user) return;
-      const role = user.role?.toLowerCase();
-      if (role === 'partner_staff') {
-        const pid = (user as any).partnerId || (user as any).partner_id;
-        if (pid) setResolvedPartnerId(pid);
-      } else if (role === 'partner') {
-        try {
-          const { data: partnerRow, error } = await sb
-            .from('partners')
-            .select('id')
-            .eq('user_id', user.id)
-            .single();
-          if (!error && partnerRow?.id) setResolvedPartnerId(partnerRow.id);
-          else console.error('Unable to resolve partner_id for partner user', error);
-        } catch (err) {
-          console.error('Partner resolve exception', err);
+      let resolvedPartnerId = null;
+      const role = user.role?.toUpperCase();
+      if (role === 'PARTNER_STAFF') {
+        // For partner staff, get their partner_id
+        const { data: staffData } = await supabase
+          .from('partner_staff')
+          .select('partner_id')
+          .eq('user_id', user?.id)
+          .single();
+        
+        if (staffData?.partner_id) {
+          resolvedPartnerId = staffData.partner_id;
         }
+      } else if (role === 'PARTNER') {
+        resolvedPartnerId = user?.id;
       }
+      setResolvedPartnerId(resolvedPartnerId);
     };
     resolvePartner();
   }, [user]);
@@ -1038,8 +1038,8 @@ export default function PartnerClaimsPage() {
       </div>
       {/* Claim form modal */}
       {showForm && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 backdrop-blur-sm p-2 sm:p-6" style={{backdropFilter:'blur(8px)'}}>
-          <div className="bg-white rounded-xl shadow-lg w-full max-w-lg relative mx-2 sm:mx-0 max-h-[90vh] overflow-y-auto">
+        <div className="modal-overlay" onClick={() => setShowForm(false)}>
+          <div className="modal-content w-full max-w-lg mx-4" onClick={(e) => e.stopPropagation()}>
             <button
               className="absolute top-4 right-4 text-2xl text-gray-400 hover:text-blue-600 z-10"
               onClick={() => setShowForm(false)}

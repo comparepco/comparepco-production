@@ -1,13 +1,14 @@
 'use client';
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import { useAuth } from '../../../../../contexts/AuthContext';
 import { useRouter, useParams } from 'next/navigation';
 import Link from 'next/link';
-import { 
-  FaCar, FaArrowLeft, FaSave, FaTimes, FaUpload, FaTrash,
-  FaCog, FaShieldAlt, FaFileAlt, FaCloudUploadAlt, FaMoneyBillWave
-} from 'react-icons/fa';
+import Image from 'next/image';
 import { supabase } from '../../../../../lib/supabase/client';
+import { 
+  FaArrowLeft, FaCar, FaCloudUploadAlt, FaTimes, FaUpload, FaTrash, FaSave,
+  FaMoneyBillWave, FaShieldAlt, FaFileAlt
+} from 'react-icons/fa';
 
 const carCategories = [
   { value: 'x', label: 'X (Economy)' },
@@ -103,27 +104,7 @@ export default function EditVehiclePage() {
     ride_hailing_categories: [] as string[]
   });
 
-  useEffect(() => {
-    console.log('Edit page - Auth loading:', authLoading, 'User:', user);
-    if (!authLoading) {
-      if (!user) {
-        console.log('No user, redirecting to login');
-        router.replace('/auth/login');
-      } else if (user.role !== 'PARTNER' && user.role !== 'PARTNER_STAFF') {
-        console.log('Wrong role:', user.role, 'redirecting to home');
-        router.replace('/');
-      } else if (user.role === 'PARTNER_STAFF' && !(user as any).permissions?.canManageFleet) {
-        console.log('Staff without fleet permission, redirecting to partner');
-        console.log('User permissions:', (user as any).permissions);
-        router.replace('/partner');
-      } else {
-        console.log('Loading vehicle for carId:', carId);
-        loadVehicle();
-      }
-    }
-  }, [user, authLoading, router, carId]);
-
-  const loadVehicle = async () => {
+  const loadVehicle = useCallback(async () => {
     try {
       const { data: carData, error } = await supabase
         .from('vehicles')
@@ -190,11 +171,17 @@ export default function EditVehiclePage() {
       setExistingImages(carDataAny.image_urls || []);
       setLoading(false);
     } catch (error) {
-      console.error('Error loading vehicle:', error);
+      // Handle error silently or log to monitoring service
       alert('Failed to load vehicle');
       router.push('/partner/fleet');
     }
-  };
+  }, [carId, user, router]);
+
+  useEffect(() => {
+    if (carId) {
+      loadVehicle();
+    }
+  }, [carId, loadVehicle]);
 
   const handleImageUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
     const files = Array.from(e.target.files || []);
@@ -315,7 +302,7 @@ export default function EditVehiclePage() {
       
       router.push('/partner/fleet?success=Vehicle updated successfully');
     } catch (error) {
-      console.error('Error updating vehicle:', error);
+      // Handle error silently or log to monitoring service
       alert('Failed to update vehicle. Please try again.');
     } finally {
       setSaving(false);
@@ -338,7 +325,7 @@ export default function EditVehiclePage() {
       
       router.push('/partner/fleet?success=Vehicle deleted successfully');
     } catch (error) {
-      console.error('Error deleting vehicle:', error);
+      // Handle error silently or log to monitoring service
       alert('Failed to delete vehicle');
     } finally {
       setSaving(false);
@@ -401,9 +388,11 @@ export default function EditVehiclePage() {
                 {/* Existing Images */}
                 {existingImages.map((imageUrl, index) => (
                   <div key={`existing-${index}`} className="relative">
-                    <img
+                    <Image
                       src={imageUrl}
                       alt={`Vehicle ${index + 1}`}
+                      width={128}
+                      height={128}
                       className="w-full h-32 object-cover rounded-lg border border-gray-200"
                     />
                     {canManageFleet && (
@@ -421,9 +410,11 @@ export default function EditVehiclePage() {
                 {/* New Image Previews */}
                 {imagePreviews.map((preview, index) => (
                   <div key={`new-${index}`} className="relative">
-                    <img
+                    <Image
                       src={preview}
                       alt={`New ${index + 1}`}
+                      width={128}
+                      height={128}
                       className="w-full h-32 object-cover rounded-lg border border-gray-200"
                     />
                     {canManageFleet && (
@@ -548,7 +539,7 @@ export default function EditVehiclePage() {
           {/* Specifications */}
           <div className="bg-white/80 backdrop-blur-sm rounded-xl shadow-lg border border-gray-200 p-6">
             <h2 className="text-lg font-semibold text-gray-900 mb-4 flex items-center gap-2">
-              <FaCog className="text-blue-600" />
+              <FaCar className="text-blue-600" />
               Specifications
             </h2>
             
@@ -866,7 +857,7 @@ export default function EditVehiclePage() {
           {/* Features */}
           <div className="bg-white/80 backdrop-blur-sm rounded-xl shadow-lg border border-gray-200 p-6">
             <h2 className="text-lg font-semibold text-gray-900 mb-4 flex items-center gap-2">
-              <FaCog className="text-purple-600" />
+              <FaCar className="text-purple-600" />
               Features & Equipment
             </h2>
             

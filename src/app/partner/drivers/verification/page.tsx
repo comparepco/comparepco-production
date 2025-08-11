@@ -1,13 +1,13 @@
 'use client';
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import { useAuth } from '../../../../contexts/AuthContext';
 import { useRouter } from 'next/navigation';
 import { 
-  FaShieldAlt, FaSearch, FaFilter, FaEye, FaClock, 
-  FaMoneyBillWave, FaCar, FaStar, FaDownload, FaChartLine,
-  FaCalendarAlt, FaUserCircle, FaFileAlt, FaExclamationTriangle,
-  FaUsers, FaCheckCircle, FaTimes, FaRoute, FaSpinner,
-  FaIdCard, FaFileContract, FaUserCheck, FaUserTimes, FaHourglassHalf
+  FaShieldAlt, FaSearch, FaEye, 
+  FaStar, FaDownload, FaChartLine,
+  FaCalendarAlt, FaUserCircle,
+  FaUsers, FaCheckCircle,
+  FaUserCheck, FaUserTimes, FaHourglassHalf
 } from 'react-icons/fa';
 import { createClient } from '@supabase/supabase-js';
 
@@ -123,13 +123,13 @@ export default function DriverVerificationPage() {
   const [currentPage, setCurrentPage] = useState(1);
   const [itemsPerPage] = useState(10);
 
-  const loadDriverVerifications = async () => {
+  const loadDriverVerifications = useCallback(async () => {
     try {
       setLoading(true);
 
       if (!user) return;
 
-      const partnerId = user.role?.toLowerCase() === 'partner_staff' ? (user as any).partnerId : user.id;
+      const partnerId = user.role === 'PARTNER_STAFF' ? (user as any).partnerId : user.id;
       if (!partnerId) {
         setDriverVerifications([]);
         setFilteredVerifications([]);
@@ -152,9 +152,9 @@ export default function DriverVerificationPage() {
       }
 
       // Get unique driver IDs
-      const uniqueDriverIds = [...new Set(bookingsData.map(b => b.driver_id))];
+      const uniqueDrivers = Array.from(new Set(bookingsData.map(b => b.driver_id)));
 
-      if (uniqueDriverIds.length === 0) {
+      if (uniqueDrivers.length === 0) {
         setDriverVerifications([]);
         setFilteredVerifications([]);
         calculateStats([]);
@@ -165,7 +165,7 @@ export default function DriverVerificationPage() {
       const { data: driversData, error: driversError } = await supabase
         .from('users')
         .select('*')
-        .in('id', uniqueDriverIds)
+        .in('id', uniqueDrivers)
         .eq('role', 'DRIVER');
 
       if (driversError || !driversData) {
@@ -250,14 +250,14 @@ export default function DriverVerificationPage() {
       setFilteredVerifications(transformedVerifications);
       calculateStats(transformedVerifications);
     } catch (err) {
-      console.error('Error loading driver verifications:', err);
+      // Handle error silently
       setDriverVerifications([]);
       setFilteredVerifications([]);
       calculateStats([]);
     } finally {
       setLoading(false);
     }
-  };
+  }, [user]);
 
   const calculateStats = (verifications: DriverVerification[]) => {
     const totalDrivers = verifications.length;
@@ -380,7 +380,7 @@ export default function DriverVerificationPage() {
     if (didInitRef.current) return;
     didInitRef.current = true;
     loadDriverVerifications();
-  }, [user, authLoading]);
+  }, [user, authLoading, loadDriverVerifications, router]);
 
   if (authLoading) {
     return (
@@ -718,9 +718,9 @@ export default function DriverVerificationPage() {
                               License: {verification.verification.license_number}
                             </div>
                           )}
-                          {verification.verification.experience_years > 0 && (
+                          {verification.verification?.experience_years && verification.verification.experience_years > 0 && (
                             <div className="text-xs text-gray-500">
-                              {verification.verification.experience_years} years experience
+                              Experience: {verification.verification.experience_years} years
                             </div>
                           )}
                         </div>

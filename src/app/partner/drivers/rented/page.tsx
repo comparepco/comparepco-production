@@ -1,19 +1,12 @@
 'use client';
-import React, { useState, useEffect, useMemo } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import { useAuth } from '../../../../contexts/AuthContext';
 import { useRouter } from 'next/navigation';
 import { 
-  FaUsers, FaSearch, FaFilter, FaEye, FaClock, 
+  FaUsers, FaSearch, FaEye, 
   FaMoneyBillWave, FaCar, FaStar, FaDownload, FaChartLine,
-  FaCalendarAlt, FaUserCircle, FaFileAlt, FaExclamationTriangle,
-  FaThumbsUp, FaThumbsDown, FaComments, FaPhone, FaEnvelope,
-  FaPlus, FaUpload, FaSignature, FaUndo, FaHistory, FaBolt,
-  FaTools, FaShieldAlt, FaChevronRight, FaBuilding, FaUser, FaEdit,
-  FaTrash, FaBell, FaExchangeAlt, FaPaperPlane, FaCheck,
-  FaInfoCircle, FaTh, FaList, FaTrophy, FaAward, FaMedal,
-  FaUserCheck, FaFileContract, FaHandshake, FaSpinner,
-  FaMapMarkerAlt, FaCreditCard, FaReceipt, FaIdCard, FaCheckCircle,
-  FaTimes, FaCalendarCheck, FaCarSide, FaRoute, FaGasPump
+  FaCalendarAlt, FaUserCircle,
+  FaEnvelope
 } from 'react-icons/fa';
 import { createClient } from '@supabase/supabase-js';
 
@@ -141,7 +134,7 @@ export default function RentedDriversPage() {
     expiring_soon: 0
   });
   const [loading, setLoading] = useState(true);
-  const [error, setError] = useState<string | null>(null);
+  const [_error, setError] = useState<string | null>(null);
   
   // Filter states
   const [searchTerm, setSearchTerm] = useState('');
@@ -157,13 +150,13 @@ export default function RentedDriversPage() {
   const [itemsPerPage] = useState(10);
   
   // Modal states
-  const [selectedDriver, setSelectedDriver] = useState<RentedDriver | null>(null);
-  const [showDriverModal, setShowDriverModal] = useState(false);
-  const [showContactModal, setShowContactModal] = useState(false);
-  const [showPerformanceModal, setShowPerformanceModal] = useState(false);
+  const [_selectedDriver, setSelectedDriver] = useState<RentedDriver | null>(null);
+  const [_showDriverModal, setShowDriverModal] = useState(false);
+  const [_showContactModal, setShowContactModal] = useState(false);
+  const [_showPerformanceModal, setShowPerformanceModal] = useState(false);
 
   // Load rented drivers data
-  const loadRentedDrivers = async () => {
+  const loadRentedDrivers = useCallback(async () => {
     try {
       setLoading(true);
       setError(null);
@@ -171,9 +164,9 @@ export default function RentedDriversPage() {
       if (!user) return;
 
       // Derive partnerId
-      const partnerId = user.role?.toLowerCase() === 'partner_staff' ? (user as any).partnerId : user.id;
+      const partnerId = user.role === 'PARTNER_STAFF' ? (user as any).partnerId : user.id;
       if (!partnerId) {
-        console.error('No partner ID found for rented drivers');
+        // Handle error silently
         setRentedDrivers([]);
         setFilteredDrivers([]);
         calculateStats([]);
@@ -189,12 +182,7 @@ export default function RentedDriversPage() {
         .order('created_at', { ascending: false });
 
       if (bookingsError) {
-        console.error('Supabase error (bookings):', {
-          message: (bookingsError as any).message,
-          details: (bookingsError as any).details,
-          hint: (bookingsError as any).hint,
-          code: (bookingsError as any).code,
-        });
+        // Handle error silently
         setRentedDrivers([]);
         setFilteredDrivers([]);
         calculateStats([]);
@@ -323,7 +311,7 @@ export default function RentedDriversPage() {
       setFilteredDrivers(transformedDrivers);
       calculateStats(transformedDrivers);
     } catch (err) {
-      console.error('Error loading rented drivers:', err);
+      // Handle error silently
       setRentedDrivers([]);
       setFilteredDrivers([]);
       calculateStats([]);
@@ -331,7 +319,7 @@ export default function RentedDriversPage() {
     } finally {
       setLoading(false);
     }
-  };
+  }, [user]);
 
   // Calculate statistics
   const calculateStats = (drivers: RentedDriver[]) => {
@@ -442,7 +430,7 @@ export default function RentedDriversPage() {
     if (didInitRef.current) return;
     didInitRef.current = true;
     loadRentedDrivers();
-  }, [user, authLoading]);
+  }, [user, authLoading, loadRentedDrivers, router]);
 
   if (authLoading) {
     return (

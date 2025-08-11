@@ -1,11 +1,11 @@
 'use client';
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import { useAuth } from '../../../contexts/AuthContext';
 import { useRouter } from 'next/navigation';
 import { 
-  FaUsers, FaSearch, FaEye, FaCheckCircle, FaTimes, FaClock,
-  FaExclamationTriangle, FaStar, FaFileAlt, FaCar, FaHistory,
-  FaMapMarkerAlt, FaCalendarAlt, FaShieldAlt, FaChevronDown, FaChevronUp,
+  FaUsers, FaSearch, FaEye, FaCheckCircle, FaTimes,
+  FaStar, FaCar, FaHistory,
+  FaShieldAlt, FaChevronDown, FaChevronUp,
   FaCheck
 } from 'react-icons/fa';
 import { supabase } from '@/lib/supabase/client';
@@ -105,8 +105,8 @@ const bookingStatusColors = {
 export default function DriversPage() {
   const { user, loading: authLoading } = useAuth();
   const router = useRouter();
-  const [loading, setLoading] = useState(true);
-  const [resolvedPartnerId,setResolvedPartnerId]=useState<string|null>(null);
+  const [loading, _setLoading] = useState(true);
+  const [_resolvedPartnerId,setResolvedPartnerId]=useState<string|null>(null);
   const [drivers, setDrivers] = useState<Driver[]>([]);
   const [bookings, setBookings] = useState<Booking[]>([]);
   const [enrichedDrivers, setEnrichedDrivers] = useState<EnrichedDriver[]>([]);
@@ -119,35 +119,43 @@ export default function DriversPage() {
   const [showDetails, setShowDetails] = useState(false);
   const [expandedDrivers, setExpandedDrivers] = useState<Set<string>>(new Set());
 
+  const resolvePartnerId = useCallback(async () => {
+    if(!user) return;
+    const role=(user.role||'').toUpperCase();
+    let resolvedPartnerId: string | null = null;
+
+    if(role==='PARTNER_STAFF'){
+      // For partner staff, get their partner_id
+      const { data: staffData } = await supabase
+        .from('partner_staff')
+        .select('partner_id')
+        .eq('user_id', user?.id)
+        .single();
+      
+      if (staffData?.partner_id) {
+        resolvedPartnerId = staffData.partner_id;
+      }
+    } else if(role==='PARTNER'){
+      resolvedPartnerId = user?.id;
+    }
+
+    if (resolvedPartnerId) {
+      loadData(resolvedPartnerId);
+    }
+  }, [user]);
+
   useEffect(() => {
     if (!authLoading) {
       if (!user) {
         router.replace('/auth/login');
-      } else if (!['partner','partner_staff','PARTNER','PARTNER_STAFF'].includes((user.role||'').toLowerCase())) {
+      } else if (!['PARTNER','PARTNER_STAFF'].includes((user.role||''))) {
         router.replace('/');
       } else {
         // resolve partner id then load
         resolvePartnerId();
       }
     }
-  }, [user, authLoading, router]);
-
-  const resolvePartnerId = async () => {
-    if(!user) return;
-    const role=(user.role||'').toUpperCase();
-    if(role==='PARTNER_STAFF'){
-       const pid=(user as any).partnerId || (user as any).partner_id;
-       if(pid){setResolvedPartnerId(pid); loadData(pid);} else {
-         // fetch from partner_staff table
-         const {data:ps,error:err}=await supabase.from('partner_staff').select('partner_id').eq('user_id',user.id).single();
-         if(!err && ps?.partner_id){setResolvedPartnerId(ps.partner_id); loadData(ps.partner_id);} else {console.error('Cannot resolve partner id',err);} 
-       }
-    } else if(role==='PARTNER'){
-       // fetch partners row where user_id==auth.uid()
-       const {data,error}=await supabase.from('partners').select('id').eq('user_id',user.id).single();
-       if(!error && data?.id){setResolvedPartnerId(data.id); loadData(data.id);} else {console.error('Cannot resolve partner id',error);} 
-    }
-  };
+  }, [user, authLoading, router, resolvePartnerId]);
 
   const loadData = (partnerId:string) => {
     // Load drivers with user info
@@ -161,7 +169,7 @@ export default function DriversPage() {
     
     driversQuery.then(({ data, error }) => {
       if (error) {
-        console.error('Error fetching drivers:', error);
+        // Handle error silently
         return;
       }
       setDrivers(data as Driver[]);
@@ -179,7 +187,7 @@ export default function DriversPage() {
     
     bookingsQuery.then(({ data, error }) => {
       if (error) {
-        console.error('Error fetching bookings:', error);
+        // Handle error silently
         return;
       }
       setBookings(data as Booking[]);
@@ -193,7 +201,7 @@ export default function DriversPage() {
     
     vehiclesQuery.then(({ data, error }) => {
       if (error) {
-        console.error('Error fetching vehicles:', error);
+        // Handle error silently
         return;
       }
       setVehicles((data||[]) as any[]);
@@ -662,29 +670,24 @@ export default function DriversPage() {
         <>
           {/* Backdrop Blur */}
           <div 
-            className="fixed inset-0 z-40" 
-            style={{ 
-              backgroundColor: 'rgba(0, 0, 0, 0.6)',
-              backdropFilter: 'blur(15px)',
-              WebkitBackdropFilter: 'blur(15px)'
-            } as React.CSSProperties}
+            className="modal-overlay-backdrop"
             onClick={() => setShowDetails(false)}
-          ></div>
+          />
           
           {/* Modal Content */}
-          <div className="fixed inset-0 flex items-center justify-center p-4 z-50 pointer-events-none">
-            <div className="bg-white rounded-xl shadow-xl max-w-4xl w-full max-h-[90vh] overflow-y-auto pointer-events-auto">
-            <div className="p-6 border-b border-gray-200">
-              <div className="flex items-center justify-between">
-                <h2 className="text-xl font-semibold text-gray-900">Driver Details</h2>
-                <button
-                  onClick={() => setShowDetails(false)}
-                  className="text-gray-500 hover:text-gray-700"
-                >
-                  <FaTimes />
-                </button>
+          <div className="modal-overlay pointer-events-none">
+            <div className="modal-content w-full max-w-4xl mx-4 pointer-events-auto">
+              <div className="p-6 border-b border-gray-200">
+                <div className="flex items-center justify-between">
+                  <h2 className="text-xl font-semibold text-gray-900">Driver Details</h2>
+                  <button
+                    onClick={() => setShowDetails(false)}
+                    className="text-gray-500 hover:text-gray-700"
+                  >
+                    <FaTimes />
+                  </button>
+                </div>
               </div>
-            </div>
             
             <div className="p-6 space-y-6">
               {/* Driver Info */}

@@ -1082,23 +1082,18 @@ export default function DocumentsPage() {
       {/* Upload Modal */}
       {showUpload && (
         <>
-          {/* Backdrop Blur */}
+          {/* Backdrop */}
           <div 
-            className="fixed inset-0 z-40" 
-            style={{ 
-              backgroundColor: 'rgba(0, 0, 0, 0.6)',
-              backdropFilter: 'blur(15px)',
-              WebkitBackdropFilter: 'blur(15px)'
-            } as React.CSSProperties}
+            className="modal-overlay-backdrop"
             onClick={() => setShowUpload(false)}
           />
           
           {/* Modal Content */}
-          <div className="fixed inset-0 flex items-center justify-center p-4 z-50 pointer-events-none">
-            <div className="bg-white rounded-xl shadow-xl max-w-2xl w-full max-h-[90vh] overflow-y-auto pointer-events-auto">
-            <div className="p-6 border-b border-gray-200">
-              <h2 className="text-xl font-semibold text-gray-900">Upload Document</h2>
-            </div>
+          <div className="modal-overlay pointer-events-none">
+            <div className="modal-content w-full max-w-2xl mx-4 pointer-events-auto">
+              <div className="p-6 border-b border-gray-200">
+                <h2 className="text-xl font-semibold text-gray-900">Upload Document</h2>
+              </div>
             
             <form onSubmit={uploadDocument} className="p-6 space-y-6">
               <div>
@@ -1222,31 +1217,26 @@ export default function DocumentsPage() {
       {/* Document Details Modal */}
       {showDetails && selectedDocument && (
         <>
-          {/* Backdrop Blur */}
+          {/* Backdrop */}
           <div 
-            className="fixed inset-0 z-40" 
-            style={{ 
-              backgroundColor: 'rgba(0, 0, 0, 0.6)',
-              backdropFilter: 'blur(15px)',
-              WebkitBackdropFilter: 'blur(15px)'
-            } as React.CSSProperties}
+            className="modal-overlay-backdrop"
             onClick={() => setShowDetails(false)}
           />
           
           {/* Modal Content */}
-          <div className="fixed inset-0 flex items-center justify-center p-4 z-50 pointer-events-none">
-            <div className="bg-white rounded-xl shadow-xl max-w-2xl w-full max-h-[90vh] overflow-y-auto pointer-events-auto">
-            <div className="p-6 border-b border-gray-200">
-              <div className="flex items-center justify-between">
-                <h2 className="text-xl font-semibold text-gray-900">Document Details</h2>
-                <button
-                  onClick={() => setShowDetails(false)}
-                  className="text-gray-500 hover:text-gray-700"
-                >
-                  ✕
-                </button>
+          <div className="modal-overlay pointer-events-none">
+            <div className="modal-content w-full max-w-2xl mx-4 pointer-events-auto">
+              <div className="p-6 border-b border-gray-200">
+                <div className="flex items-center justify-between">
+                  <h2 className="text-xl font-semibold text-gray-900">Document Details</h2>
+                  <button
+                    onClick={() => setShowDetails(false)}
+                    className="text-gray-500 hover:text-gray-700"
+                  >
+                    ✕
+                  </button>
+                </div>
               </div>
-            </div>
             
             <div className="p-6 space-y-6">
               <div className="flex items-center gap-4">

@@ -477,7 +477,7 @@ export default function PartnerBookingsPage() {
     if (!authLoading) {
       if (!user) {
         router.replace('/auth/login');
-      } else if (!user.role || !['partner', 'partner_staff'].includes(user.role.toLowerCase())) {
+      } else if (!user.role || !['PARTNER', 'PARTNER_STAFF'].includes(user.role)) {
         router.replace('/');
       } else {
         setLoading(false);
@@ -492,7 +492,7 @@ export default function PartnerBookingsPage() {
     if (!user) return;
 
     try {
-      const partnerId = user.role?.toLowerCase() === 'partner_staff' ? (user as any).partnerId : user.id;
+      const partnerId = user?.role === 'PARTNER_STAFF' ? (user as any)?.partnerId : user?.id;
       
       if (!partnerId) {
         console.error('No partner ID found for bookings data');
@@ -628,7 +628,7 @@ export default function PartnerBookingsPage() {
     if (!user) return;
 
     try {
-      const partnerId = user.role?.toLowerCase() === 'partner_staff' ? (user as any).partnerId : user.id;
+      const partnerId = user.role === 'PARTNER_STAFF' ? (user as any).partnerId : user.id;
       
       if (!partnerId) {
         console.error('No partner ID found for vehicles data');
@@ -815,7 +815,7 @@ export default function PartnerBookingsPage() {
     try {
       console.log('📤 Sending partner response to API...');
       
-      const partnerId = user.role?.toLowerCase() === 'partner_staff' ? (user as any).partnerId : user.id;
+      const partnerId = user.role === 'PARTNER_STAFF' ? (user as any).partnerId : user.id;
       
       if (!partnerId) {
         throw new Error('No partner ID found. Please contact support.');
@@ -897,7 +897,7 @@ export default function PartnerBookingsPage() {
     try {
       console.log('📤 Sending return response to API...');
       
-      const partnerId = user.role?.toLowerCase() === 'partner_staff' ? (user as any).partnerId : user.id;
+      const partnerId = user.role === 'PARTNER_STAFF' ? (user as any).partnerId : user.id;
       
       if (!partnerId) {
         throw new Error('No partner ID found. Please contact support.');
@@ -956,7 +956,7 @@ export default function PartnerBookingsPage() {
 
     setSubmittingVehicle(true);
     try {
-      const partnerId = user?.role?.toLowerCase() === 'partner_staff' ? (user as any)?.partnerId : user?.id;
+      const partnerId = user?.role === 'PARTNER_STAFF' ? (user as any)?.partnerId : user?.id;
 
       const reasonText = vehicleData.reason?.trim() || 'Vehicle change (no specific reason provided)';
 
@@ -1430,22 +1430,18 @@ export default function PartnerBookingsPage() {
 
       {/* View Details Modal - Mirrors Driver Side Exactly */}
       {showDetails && selectedBooking && (
-        <div 
-          className="fixed inset-0 bg-black/50 backdrop-blur-md flex items-center justify-center p-4 z-50"
-          style={{ backdropFilter: 'blur(8px)' }}
-          onClick={(e) => {
-            if (e.target === e.currentTarget) {
-              closeAllModals();
-            }
-          }}
-        >
-          <div className="bg-white rounded-lg shadow-xl max-w-6xl w-full max-h-[95vh] overflow-y-auto">
+        <div className="modal-overlay" onClick={(e) => {
+          if (e.target === e.currentTarget) {
+            closeAllModals();
+          }
+        }}>
+          <div className="modal-content w-full max-w-6xl mx-4" onClick={(e) => e.stopPropagation()}>
             <div className="p-6 border-b border-gray-200">
               <div className="flex items-center justify-between">
                 <h2 className="text-xl font-bold text-gray-900">Booking Details</h2>
                 <button
                   onClick={closeAllModals}
-                  className="text-gray-400 hover:text-gray-600 transition-colors"
+                  className="text-gray-400 hover:text-gray-600"
                 >
                   <FaTimes className="h-6 w-6" />
                 </button>
@@ -2019,7 +2015,7 @@ export default function PartnerBookingsPage() {
                           headers: { 'Content-Type': 'application/json' },
                           body: JSON.stringify({ 
                             bookingId: selectedBooking.id, 
-                            partnerId: user?.role?.toLowerCase()==='partner_staff'?(user as any)?.partnerId:user?.id,
+                            partnerId: user?.role === 'PARTNER_STAFF' ? (user as any)?.partnerId : user?.id,
                             triggeredBy: 'partner',
                             bypassRequirements: force
                           }),
@@ -2055,7 +2051,7 @@ export default function PartnerBookingsPage() {
                         const response = await fetch('/api/bookings/finish', {
                           method: 'POST',
                           headers: { 'Content-Type': 'application/json' },
-                          body: JSON.stringify({ bookingId: selectedBooking.id, partnerId: user?.role === 'partner_staff' ? (user as any)?.partnerId : user?.id }),
+                          body: JSON.stringify({ bookingId: selectedBooking.id, partnerId: user?.role === 'PARTNER_STAFF' ? (user as any)?.partnerId : user?.id }),
                         });
                         if (!response.ok) throw new Error('Failed to finish booking');
                         alert('Booking marked as finished.');
@@ -2367,16 +2363,12 @@ export default function PartnerBookingsPage() {
 
       {/* Return Request Modal */}
       {showReturnModal && selectedBooking && (
-        <div 
-          className="fixed inset-0 bg-black/50 backdrop-blur-md flex items-center justify-center p-4 z-50"
-          style={{ backdropFilter: 'blur(8px)' }}
-          onClick={(e) => {
-            if (e.target === e.currentTarget) {
-              closeAllModals();
-            }
-          }}
-        >
-          <div className="bg-white rounded-lg shadow-xl max-w-md w-full">
+        <div className="modal-overlay" onClick={(e) => {
+          if (e.target === e.currentTarget) {
+            closeAllModals();
+          }
+        }}>
+          <div className="modal-content w-full max-w-md mx-4" onClick={(e) => e.stopPropagation()}>
             <div className="p-6 border-b border-gray-200">
               <h2 className="text-xl font-bold text-gray-900">Handle Return Request</h2>
             </div>

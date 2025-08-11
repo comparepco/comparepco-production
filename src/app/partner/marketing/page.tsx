@@ -1119,9 +1119,9 @@ export default function PartnerMarketingPage() {
 
         {/* Promo Code Modal */}
         {showPromoModal && (
-          <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
-            <div className="bg-white rounded-xl p-6 w-full max-w-2xl mx-auto max-h-[90vh] overflow-y-auto">
-              <div className="flex items-center justify-between mb-4">
+          <div className="modal-overlay" onClick={() => setShowPromoModal(false)}>
+            <div className="modal-content w-full max-w-2xl mx-4" onClick={(e) => e.stopPropagation()}>
+              <div className="flex items-center justify-between mb-4 p-6 border-b border-gray-200">
                 <h3 className="text-lg font-semibold">Create Promo Code</h3>
                 <button
                   onClick={() => setShowPromoModal(false)}
@@ -1324,9 +1324,9 @@ export default function PartnerMarketingPage() {
 
         {/* Campaign Modal */}
         {showCampaignModal && (
-          <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
-            <div className="bg-white rounded-xl p-6 w-full max-w-2xl mx-auto max-h-[90vh] overflow-y-auto">
-              <div className="flex items-center justify-between mb-4">
+          <div className="modal-overlay" onClick={() => setShowCampaignModal(false)}>
+            <div className="modal-content w-full max-w-2xl mx-4" onClick={(e) => e.stopPropagation()}>
+              <div className="flex items-center justify-between mb-4 p-6 border-b border-gray-200">
                 <h3 className="text-lg font-semibold">Create Campaign</h3>
                 <button
                   onClick={() => setShowCampaignModal(false)}
@@ -1446,9 +1446,9 @@ export default function PartnerMarketingPage() {
 
         {/* Referral Program Modal */}
         {showReferralModal && (
-          <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
-            <div className="bg-white rounded-xl p-6 w-full max-w-2xl mx-auto max-h-[90vh] overflow-y-auto">
-              <div className="flex items-center justify-between mb-4">
+          <div className="modal-overlay" onClick={() => setShowReferralModal(false)}>
+            <div className="modal-content w-full max-w-2xl mx-4" onClick={(e) => e.stopPropagation()}>
+              <div className="flex items-center justify-between mb-4 p-6 border-b border-gray-200">
                 <h3 className="text-lg font-semibold">Create Referral Program</h3>
                 <button
                   onClick={() => setShowReferralModal(false)}

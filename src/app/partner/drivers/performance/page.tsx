@@ -1,13 +1,12 @@
 'use client';
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import { useAuth } from '../../../../contexts/AuthContext';
 import { useRouter } from 'next/navigation';
 import { 
-  FaStar, FaSearch, FaFilter, FaEye, FaClock, 
+  FaStar, FaSearch, FaEye, 
   FaMoneyBillWave, FaCar, FaDownload, FaChartLine,
-  FaCalendarAlt, FaUserCircle, FaFileAlt, FaExclamationTriangle,
-  FaUsers, FaCheckCircle, FaTimes, FaRoute, FaSpinner,
-  FaTrophy, FaAward, FaMedal, FaArrowUp, FaArrowDown
+  FaCalendarAlt, FaUserCircle, FaExclamationTriangle,
+  FaUsers, FaRoute, FaTrophy
 } from 'react-icons/fa';
 import { createClient } from '@supabase/supabase-js';
 
@@ -126,13 +125,13 @@ export default function DriverPerformancePage() {
   const [currentPage, setCurrentPage] = useState(1);
   const [itemsPerPage] = useState(10);
 
-  const loadDriverPerformances = async () => {
+  const loadDriverPerformances = useCallback(async () => {
     try {
       setLoading(true);
 
       if (!user) return;
 
-      const partnerId = user.role?.toLowerCase() === 'partner_staff' ? (user as any).partnerId : user.id;
+      const partnerId = user.role === 'PARTNER_STAFF' ? (user as any).partnerId : user.id;
       if (!partnerId) {
         setDriverPerformances([]);
         setFilteredPerformances([]);
@@ -301,14 +300,14 @@ export default function DriverPerformancePage() {
       setFilteredPerformances(transformedPerformances);
       calculateStats(transformedPerformances);
     } catch (err) {
-      console.error('Error loading driver performances:', err);
+      // Handle error silently
       setDriverPerformances([]);
       setFilteredPerformances([]);
       calculateStats([]);
     } finally {
       setLoading(false);
     }
-  };
+  }, [user]);
 
   const calculateStats = (performances: DriverPerformance[]) => {
     const totalDrivers = performances.length;
@@ -416,7 +415,7 @@ export default function DriverPerformancePage() {
     if (didInitRef.current) return;
     didInitRef.current = true;
     loadDriverPerformances();
-  }, [user, authLoading]);
+  }, [user, authLoading, loadDriverPerformances, router]);
 
   if (authLoading) {
     return (
@@ -436,7 +435,7 @@ export default function DriverPerformancePage() {
   const endIndex = startIndex + itemsPerPage;
   const currentPerformances = filteredPerformances.slice(startIndex, endIndex);
 
-  const formatDate = (date: string) => new Date(date).toLocaleDateString('en-GB');
+  const _formatDate = (date: string) => new Date(date).toLocaleDateString('en-GB');
   const formatCurrency = (amount: number) => `£${amount.toLocaleString()}`;
   const formatRating = (rating: number) => rating.toFixed(1);
   const formatMileage = (miles: number) => `${miles.toLocaleString()} miles`;
@@ -637,7 +636,7 @@ export default function DriverPerformancePage() {
                 >
                   <option value="all">All Activity</option>
                   <option value="active">Active (Last 30 days)</option>
-                  <option value="inactive">Inactive (>30 days)</option>
+                  <option value="inactive">Inactive (&gt;30 days)</option>
                 </select>
               </div>
               

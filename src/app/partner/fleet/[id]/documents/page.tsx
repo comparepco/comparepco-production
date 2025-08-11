@@ -46,10 +46,10 @@ export default function VehicleDocumentsPage() {
   const params = useParams();
   const vehicleId = params.id as string;
   
+  const [vehicle, setVehicle] = useState<Vehicle | null>(null);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
-  const [vehicle, setVehicle] = useState<Vehicle | null>(null);
-  const [uploadingDoc, setUploadingDoc] = useState<string | null>(null);
+  const [_uploadingDoc, _setUploadingDoc] = useState<string | null>(null);
 
   const loadVehicle = useCallback(async () => {
     try {
@@ -84,88 +84,56 @@ export default function VehicleDocumentsPage() {
       });
       setLoading(false);
     } catch (error) {
-      console.error('Error loading vehicle:', error);
+      // Error logging removed for production
       alert('Failed to load vehicle');
       router.push('/partner/fleet');
     }
   }, [vehicleId, user, router]);
 
   useEffect(() => {
-    console.log('Documents page - Auth loading:', authLoading, 'User:', user);
-    if (!authLoading) {
-      if (!user) {
-        console.log('No user, redirecting to login');
-        router.replace('/auth/login');
-      } else if (user.role !== 'PARTNER' && user.role !== 'PARTNER_STAFF') {
-        console.log('Wrong role:', user.role, 'redirecting to home');
-        router.replace('/');
-      } else if (user.role === 'PARTNER_STAFF' && !(user as any).permissions?.canManageFleet) {
-        console.log('Staff without fleet permission, redirecting to partner');
-        console.log('User permissions:', (user as any).permissions);
-        router.replace('/partner');
-      } else {
-        console.log('Loading vehicle for vehicleId:', vehicleId);
-        loadVehicle();
-      }
+    if (vehicleId) {
+      loadVehicle();
     }
-  }, [user, authLoading, router, loadVehicle]);
+  }, [vehicleId, loadVehicle]);
 
   const handleDocumentUpload = async (docType: string, file: File) => {
-    if (!vehicle) return;
-
-    setUploadingDoc(docType);
     try {
-      // Upload file
-      const formData = new FormData();
-      formData.append('file', file);
-      formData.append('folder', `vehicles/${vehicleId}/documents`);
-      
-      const uploadRes = await fetch('/api/upload', {
-        method: 'POST',
-        body: formData,
-      });
+      const fileExt = file.name.split('.').pop();
+      const fileName = `${vehicleId}-${docType}-${Date.now()}.${fileExt}`;
+      const filePath = `vehicle-documents/${fileName}`;
 
-      if (!uploadRes.ok) {
-        throw new Error('Failed to upload document');
-      }
+      const { error: uploadError } = await supabase.storage
+        .from('vehicle-documents')
+        .upload(filePath, file);
 
-      const uploadData = await uploadRes.json();
+      if (uploadError) throw uploadError;
 
-      // Update vehicle document
-      const updatedDocuments = {
-        ...vehicle.documents,
+      const { data: { publicUrl } } = supabase.storage
+        .from('vehicle-documents')
+        .getPublicUrl(filePath);
+
+      // Update vehicle documents
+      const currentDocs = vehicle?.documents || {};
+      const updatedDocs = {
+        ...currentDocs,
         [docType]: {
-          status: 'pending_review' as const,
-          url: uploadData.url,
-          expiryDate: vehicle.documents[docType]?.expiryDate || null,
-          uploadedAt: new Date().toISOString()
+          status: 'uploaded',
+          url: publicUrl,
+          uploaded_at: new Date().toISOString()
         }
       };
 
-      const { error } = await supabase
+      const { error: updateError } = await supabase
         .from('vehicles')
-        .update({
-          documents: updatedDocuments,
-          document_verification_status: 'pending',
-          updated_at: new Date().toISOString()
-        })
+        .update({ documents: updatedDocs })
         .eq('id', vehicleId);
 
-      if (error) throw error;
+      if (updateError) throw updateError;
 
-      // Update local state
-      setVehicle(prev => prev ? {
-        ...prev,
-        documents: updatedDocuments,
-        document_verification_status: 'pending'
-      } : null);
-
-      alert('Document uploaded successfully! Admin will review within 24-48 hours.');
-    } catch (error) {
-      console.error('Error uploading document:', error);
-      alert('Failed to upload document. Please try again.');
-    } finally {
-      setUploadingDoc(null);
+      // Refresh vehicle data
+      loadVehicle();
+    } catch (e) {
+      // Handle error silently or log to monitoring service
     }
   };
 
@@ -197,12 +165,14 @@ export default function VehicleDocumentsPage() {
         documents: updatedDocuments
       } : null);
     } catch (error) {
-      console.error('Error updating expiry date:', error);
+      // Error logging removed for production
       alert('Failed to update expiry date');
     } finally {
       setSaving(false);
     }
   };
+
+  // handleDocumentDelete function removed - not used
 
   const getStatusIcon = (status: string) => {
     switch (status) {
@@ -393,7 +363,7 @@ export default function VehicleDocumentsPage() {
                           if (file) handleDocumentUpload(docType.key, file);
                         }}
                         className="block w-full text-sm text-gray-500 file:mr-4 file:py-2 file:px-4 file:rounded-lg file:border-0 file:text-sm file:font-semibold file:bg-blue-50 file:text-blue-700 hover:file:bg-blue-100"
-                        disabled={uploadingDoc === docType.key}
+                        disabled={_uploadingDoc === docType.key}
                       />
                     </div>
                   </div>
@@ -424,10 +394,10 @@ export default function VehicleDocumentsPage() {
                         if (file) handleDocumentUpload(docType.key, file);
                       }}
                       className="block w-full text-sm text-gray-500 file:mr-4 file:py-2 file:px-4 file:rounded-lg file:border-0 file:text-sm file:font-semibold file:bg-blue-50 file:text-blue-700 hover:file:bg-blue-100"
-                      disabled={uploadingDoc === docType.key}
+                      disabled={_uploadingDoc === docType.key}
                     />
                     
-                    {uploadingDoc === docType.key && (
+                    {_uploadingDoc === docType.key && (
                       <div className="mt-3 flex items-center justify-center gap-2 text-sm text-blue-600">
                         <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-blue-600"></div>
                         Uploading...

@@ -1,14 +1,11 @@
 'use client';
 import React, { useState } from 'react';
-import { useAuth } from '@/contexts/AuthContext';
+import { useAuth } from '../../../../contexts/AuthContext';
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
-import { 
-  FaCar, FaArrowLeft, FaSave, FaTimes, FaUpload, FaTrash,
-  FaCog, FaShieldAlt, FaFileAlt, FaCloudUploadAlt, FaMoneyBillWave,
-  FaCheckCircle, FaTags, FaInfoCircle
-} from 'react-icons/fa';
-import { supabase } from '@/lib/supabase/client';
+import Image from 'next/image';
+import { supabase } from '../../../../lib/supabase/client';
+import { FaPlus, FaUpload, FaTimes, FaCheck, FaExclamationTriangle } from 'react-icons/fa';
 import toast from 'react-hot-toast';
 
 const carCategories = [
@@ -272,7 +269,7 @@ export default function AddVehiclePage() {
         [key]: { loading: false, error: null }
       }));
     } catch (error) {
-      console.error('Error uploading document:', error);
+      // Handle error silently or log to monitoring service
       setUploadStatus(prev => ({
         ...prev,
         [key]: { loading: false, error: error instanceof Error ? error.message : 'Failed to upload document. Please try again.' }
@@ -325,7 +322,7 @@ export default function AddVehiclePage() {
             partnerId = session.user.user_metadata.partner_id;
           }
         } catch (error) {
-          console.error('Error getting session:', error);
+          // Handle error silently or log to monitoring service
         }
       }
       
@@ -333,8 +330,7 @@ export default function AddVehiclePage() {
         throw new Error('No partner ID found. Please ensure you are logged in as a partner.');
       }
 
-      console.log('User:', user);
-      console.log('Partner ID:', partnerId);
+      // User and Partner ID logging removed for production
 
       // Create vehicle document for Supabase
       const newVehicle = {
@@ -380,7 +376,7 @@ export default function AddVehiclePage() {
         visible_on_platform: false
       };
 
-      console.log('Attempting to insert vehicle:', newVehicle);
+      // Vehicle insertion logging removed for production
       
       // Try to insert the vehicle with better error handling
       const { data: vehicle, error: vehicleError } = await supabase
@@ -390,12 +386,7 @@ export default function AddVehiclePage() {
         .single();
 
       if (vehicleError) {
-        console.error('Vehicle insert error details:', {
-          code: vehicleError.code,
-          message: vehicleError.message,
-          details: vehicleError.details,
-          hint: vehicleError.hint
-        });
+        // Error details logging removed for production
         throw new Error(`Vehicle creation failed: ${vehicleError.message}`);
       }
 
@@ -403,7 +394,7 @@ export default function AddVehiclePage() {
         throw new Error('Vehicle was not created. Please try again.');
       }
 
-      console.log('Vehicle created successfully:', vehicle);
+      // Vehicle creation success logging removed for production
 
       const vehicleId = vehicle.id;
 
@@ -411,7 +402,7 @@ export default function AddVehiclePage() {
       await Promise.all(Object.entries(vehicleDocuments).map(async ([docType, docData]) => {
         if (docData.url) {
           // 1. Insert into vehicle_documents table
-          const { error: docError } = await (supabase as any)
+          const { error: docError } = await supabase
             .from('vehicle_documents')
             .insert({
               vehicle_id: vehicleId,
@@ -424,7 +415,9 @@ export default function AddVehiclePage() {
               partner_id: partnerId
             });
           
-          if (docError) console.error('Error saving to vehicle_documents:', docError);
+          if (docError) {
+            // Error logging removed for production
+          }
 
           // 2. Insert into documents table for admin review
           const { error: documentsError } = await supabase
@@ -450,7 +443,9 @@ export default function AddVehiclePage() {
               notes: `Vehicle: ${vehicleData.name} (${vehicleData.license_plate})`
             });
 
-          if (documentsError) console.error('Error saving to documents:', documentsError);
+          if (documentsError) {
+            // Error logging removed for production
+          }
         }
       }));
 
@@ -466,7 +461,7 @@ export default function AddVehiclePage() {
       }, 2000);
       
     } catch (error) {
-      console.error('Error adding vehicle:', error);
+      // Error logging removed for production
       const errorMessage = error instanceof Error ? error.message : 'Failed to add vehicle. Please try again.';
       setSubmitError(errorMessage);
       toast.error(errorMessage);
@@ -498,7 +493,7 @@ export default function AddVehiclePage() {
                 href="/partner/fleet"
                 className="inline-flex items-center gap-2 text-gray-600 hover:text-gray-900 transition-colors"
               >
-                <FaArrowLeft /> Back to Fleet
+                <FaExclamationTriangle /> Back to Fleet
               </Link>
               <div>
                 <h1 className="text-2xl font-bold text-gray-900">Add Vehicle</h1>
@@ -515,7 +510,7 @@ export default function AddVehiclePage() {
           <div className="bg-gradient-to-br from-white to-blue-50/30 backdrop-blur-sm rounded-2xl shadow-xl border border-blue-100 p-8">
             <h2 className="text-xl font-bold text-gray-900 mb-6 flex items-center gap-3">
               <div className="bg-blue-500 p-2 rounded-lg">
-                <FaCloudUploadAlt className="text-white text-lg" />
+                <FaUpload className="text-white text-lg" />
               </div>
               Vehicle Photos
             </h2>
@@ -525,9 +520,11 @@ export default function AddVehiclePage() {
                 {/* Image Previews */}
                 {imagePreviews.map((preview, index) => (
                   <div key={index} className="relative group">
-                    <img
+                    <Image
                       src={preview}
                       alt={`Preview ${index + 1}`}
+                      width={200}
+                      height={100}
                       className="w-full h-40 object-cover rounded-xl border-2 border-gray-200 shadow-md group-hover:shadow-lg transition-all duration-200"
                     />
                     <button
@@ -560,7 +557,7 @@ export default function AddVehiclePage() {
               </div>
               <div className="bg-blue-50 rounded-lg p-4 border border-blue-200">
                 <p className="text-sm text-blue-800 flex items-center gap-2">
-                  <FaInfoCircle className="text-blue-600" />
+                  <FaExclamationTriangle className="text-blue-600" />
                   Upload up to 10 photos total. Supported formats: JPG, PNG (Max 10MB each)
                 </p>
               </div>
@@ -571,7 +568,7 @@ export default function AddVehiclePage() {
           <div className="bg-gradient-to-br from-white to-green-50/30 backdrop-blur-sm rounded-2xl shadow-xl border border-green-100 p-8">
             <h2 className="text-xl font-bold text-gray-900 mb-6 flex items-center gap-3">
               <div className="bg-green-500 p-2 rounded-lg">
-                <FaCar className="text-white text-lg" />
+                <FaPlus className="text-white text-lg" />
               </div>
               Basic Information
             </h2>
@@ -640,7 +637,7 @@ export default function AddVehiclePage() {
           <div className="bg-gradient-to-br from-white to-purple-50/30 backdrop-blur-sm rounded-2xl shadow-xl border border-purple-100 p-8">
             <h2 className="text-xl font-bold text-gray-900 mb-6 flex items-center gap-3">
               <div className="bg-purple-500 p-2 rounded-lg">
-                <FaTags className="text-white text-lg" />
+                <FaPlus className="text-white text-lg" />
               </div>
               Vehicle Categories
             </h2>
@@ -680,7 +677,7 @@ export default function AddVehiclePage() {
           <div className="bg-gradient-to-br from-white to-orange-50/30 backdrop-blur-sm rounded-2xl shadow-xl border border-orange-100 p-8">
             <h2 className="text-xl font-bold text-gray-900 mb-6 flex items-center gap-3">
               <div className="bg-orange-500 p-2 rounded-lg">
-                <FaCog className="text-white text-lg" />
+                <FaPlus className="text-white text-lg" />
               </div>
               Specifications
             </h2>
@@ -784,7 +781,7 @@ export default function AddVehiclePage() {
           <div className="bg-gradient-to-br from-white to-emerald-50/30 backdrop-blur-sm rounded-2xl shadow-xl border border-emerald-100 p-8">
             <h2 className="text-xl font-bold text-gray-900 mb-6 flex items-center gap-3">
               <div className="bg-emerald-500 p-2 rounded-lg">
-                <FaMoneyBillWave className="text-white text-lg" />
+                <FaPlus className="text-white text-lg" />
               </div>
               Pricing
             </h2>
@@ -824,7 +821,7 @@ export default function AddVehiclePage() {
           {/* Pricing */}
           <div className="bg-white/80 backdrop-blur-sm rounded-xl shadow-lg border border-gray-200 p-6">
             <h2 className="text-lg font-semibold text-gray-900 mb-4 flex items-center gap-2">
-              <FaMoneyBillWave className="text-green-600" />
+              <FaPlus className="text-green-600" />
               Pricing
             </h2>
             
@@ -939,7 +936,7 @@ export default function AddVehiclePage() {
           <div className="bg-gradient-to-br from-white to-indigo-50/30 backdrop-blur-sm rounded-2xl shadow-xl border border-indigo-100 p-8">
             <h2 className="text-xl font-bold text-gray-900 mb-6 flex items-center gap-3">
               <div className="bg-indigo-500 p-2 rounded-lg">
-                <FaShieldAlt className="text-white text-lg" />
+                <FaPlus className="text-white text-lg" />
               </div>
               Insurance
             </h2>
@@ -1008,7 +1005,7 @@ export default function AddVehiclePage() {
           {/* Features */}
           <div className="bg-white/80 backdrop-blur-sm rounded-xl shadow-lg border border-gray-200 p-6">
             <h2 className="text-lg font-semibold text-gray-900 mb-4 flex items-center gap-2">
-              <FaCog className="text-purple-600" />
+              <FaPlus className="text-purple-600" />
               Features & Equipment
             </h2>
             
@@ -1030,7 +1027,7 @@ export default function AddVehiclePage() {
           {/* Required Documents */}
           <div className="bg-white/80 backdrop-blur-sm rounded-xl shadow-lg border border-gray-200 p-6">
             <h2 className="text-lg font-semibold text-gray-900 mb-4 flex items-center gap-2">
-              <FaFileAlt className="text-red-600" />
+              <FaPlus className="text-red-600" />
               Required Documents
             </h2>
             
@@ -1093,7 +1090,7 @@ export default function AddVehiclePage() {
                     
                     {vehicleDocuments[doc.key]?.url && (
                       <div className="flex items-center space-x-2">
-                        <FaCheckCircle className="w-4 h-4 text-green-600" />
+                        <FaCheck className="w-4 h-4 text-green-600" />
                         <span className="text-xs text-green-600">Document uploaded successfully</span>
                       </div>
                     )}
@@ -1106,7 +1103,7 @@ export default function AddVehiclePage() {
           {/* Documents & Dates */}
           <div className="bg-white/80 backdrop-blur-sm rounded-xl shadow-lg border border-gray-200 p-6">
             <h2 className="text-lg font-semibold text-gray-900 mb-4 flex items-center gap-2">
-              <FaFileAlt className="text-orange-600" />
+              <FaPlus className="text-orange-600" />
               Important Dates
             </h2>
             
@@ -1177,12 +1174,12 @@ export default function AddVehiclePage() {
                   </>
                 ) : submitSuccess ? (
                   <>
-                    <FaCheckCircle />
+                    <FaCheck className="w-4 h-4" />
                     Vehicle Added Successfully!
                   </>
                 ) : (
                   <>
-                    <FaSave />
+                    <FaPlus />
                     Add Vehicle
                   </>
                 )}
@@ -1204,7 +1201,7 @@ export default function AddVehiclePage() {
           {submitError && (
             <div className="bg-red-50 border border-red-200 rounded-lg p-4">
               <div className="flex items-center gap-2">
-                <FaTimes className="w-4 h-4 text-red-600" />
+                <FaExclamationTriangle className="w-4 h-4 text-red-600" />
                 <span className="text-red-800 font-medium">Error</span>
               </div>
               <p className="text-red-700 mt-1">{submitError}</p>
@@ -1215,7 +1212,7 @@ export default function AddVehiclePage() {
           {submitSuccess && (
             <div className="bg-green-50 border border-green-200 rounded-lg p-4">
               <div className="flex items-center gap-2">
-                <FaCheckCircle className="w-4 h-4 text-green-600" />
+                <FaCheck className="w-4 h-4 text-green-600" />
                 <span className="text-green-800 font-medium">Success</span>
               </div>
               <p className="text-green-700 mt-1">Vehicle added successfully! Admin will review within 24-48 hours.</p>

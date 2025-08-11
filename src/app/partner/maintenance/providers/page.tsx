@@ -20,7 +20,6 @@ import {
   FaUser
 } from 'react-icons/fa';
 import { createClient } from '@supabase/supabase-js';
-import { useSidebar } from '@/contexts/SidebarContext';
 
 const supabase = createClient(
   process.env.NEXT_PUBLIC_SUPABASE_URL!,
@@ -59,7 +58,6 @@ export default function ServiceProvidersPage() {
   const { user, loading: authLoading } = useAuth();
   const router = useRouter();
   const didInitRef = React.useRef(false);
-  const { sidebarLeft } = useSidebar();
 
   const [providers, setProviders] = useState<ServiceProvider[]>([]);
   const [filtered, setFiltered] = useState<ServiceProvider[]>([]);
@@ -142,23 +140,21 @@ export default function ServiceProvidersPage() {
     'Wheel Alignment'
   ];
 
+  const loadProviders = useCallback(async () => {
+    const getPartnerId = async () => {
+      if (!user) return null;
+      if (user.role === 'PARTNER') return user.id;
+      if (user.role === 'PARTNER_STAFF') {
+        const { data } = await supabase
+          .from('partner_staff')
+          .select('partner_id')
+          .eq('user_id', user.id)
+          .maybeSingle();
+        return data?.partner_id ?? null;
+      }
+      return null;
+    };
 
-
-  const getPartnerId = async () => {
-    if (!user) return null;
-    if (user.role === 'PARTNER') return user.id;
-    if (user.role === 'PARTNER_STAFF') {
-      const { data } = await supabase
-        .from('partner_staff')
-        .select('partner_id')
-        .eq('user_id', user.id)
-        .maybeSingle();
-      return data?.partner_id ?? null;
-    }
-    return null;
-  };
-
-  const loadProviders = async () => {
     try {
       setLoading(true);
       const partnerId = await getPartnerId();
@@ -252,19 +248,19 @@ export default function ServiceProvidersPage() {
       setProviders(mockProviders);
       setFiltered(mockProviders);
     } catch (e) {
-      console.error('loadProviders error', e);
+      // Handle error silently or log to monitoring service
       setProviders([]);
       setFiltered([]);
     } finally {
       setLoading(false);
     }
-  };
+  }, [user]);
 
   useEffect(() => {
     if (authLoading) return;
     if (!user) { router.replace('/auth/login'); return; }
     if (didInitRef.current) return; didInitRef.current = true; loadProviders();
-  }, [user, authLoading]);
+  }, [user, authLoading, router, loadProviders]);
 
   useEffect(() => {
     let list = [...providers];
@@ -302,6 +298,20 @@ export default function ServiceProvidersPage() {
         updated_at: new Date().toISOString()
       } : p));
     } else {
+      const getPartnerId = async () => {
+        if (!user) return null;
+        if (user.role === 'PARTNER') return user.id;
+        if (user.role === 'PARTNER_STAFF') {
+          const { data } = await supabase
+            .from('partner_staff')
+            .select('partner_id')
+            .eq('user_id', user.id)
+            .maybeSingle();
+          return data?.partner_id ?? null;
+        }
+        return null;
+      };
+      
       const newProvider: ServiceProvider = {
         id: Date.now().toString(),
         partner_id: await getPartnerId() || '',
@@ -651,12 +661,11 @@ export default function ServiceProvidersPage() {
       {showForm && (
         <>
           <div
-            className="fixed inset-0 bg-black bg-opacity-50 z-40"
-            style={{ left: sidebarLeft }}
+            className="modal-overlay-backdrop"
             onClick={() => setShowForm(false)}
           />
-          <div className="fixed inset-0 flex items-center justify-center p-4 z-50">
-            <div className="bg-white rounded-lg shadow-xl max-w-4xl w-full max-h-[90vh] overflow-y-auto">
+          <div className="modal-overlay pointer-events-none">
+            <div className="modal-content w-full max-w-4xl mx-4 pointer-events-auto">
               <div className="p-6 border-b border-gray-200">
                 <h2 className="text-xl font-semibold text-gray-900">
                   {editingProvider ? 'Edit Service Provider' : 'Add New Service Provider'}

@@ -1,11 +1,11 @@
 'use client';
-import React, { useEffect, useState } from 'react';
+import * as React from 'react';
+import { useEffect, useState, useCallback } from 'react';
 import { useAuth } from '@/contexts/AuthContext';
 import { useRouter } from 'next/navigation';
 import {
-  FaBoxes,
+  FaBox,
   FaSearch,
-  FaFilter,
   FaDownload,
   FaPlus,
   FaEdit,
@@ -13,14 +13,9 @@ import {
   FaExclamationTriangle,
   FaCheckCircle,
   FaClock,
-  FaBarcode,
-  FaMoneyBillWave,
-  FaWarehouse,
-  FaTruck,
-  FaTools
+  FaFileAlt
 } from 'react-icons/fa';
 import { createClient } from '@supabase/supabase-js';
-import { useSidebar } from '@/contexts/SidebarContext';
 
 const supabase = createClient(
   process.env.NEXT_PUBLIC_SUPABASE_URL!,
@@ -50,7 +45,6 @@ export default function PartsInventoryPage() {
   const { user, loading: authLoading } = useAuth();
   const router = useRouter();
   const didInitRef = React.useRef(false);
-  const { sidebarLeft } = useSidebar();
 
   const [parts, setParts] = useState<Part[]>([]);
   const [filtered, setFiltered] = useState<Part[]>([]);
@@ -65,7 +59,20 @@ export default function PartsInventoryPage() {
   const [supplierFilter, setSupplierFilter] = useState('all');
 
   // Form data
-  const [formData, setFormData] = useState({
+  const [formData, setFormData] = useState<{
+    name: string;
+    part_number: string;
+    category: string;
+    description: string;
+    quantity: number;
+    min_quantity: number;
+    unit_cost: number;
+    supplier: string;
+    supplier_contact: string;
+    location: string;
+    status: Part['status'];
+    notes: string;
+  }>({
     name: '',
     part_number: '',
     category: '',
@@ -76,7 +83,8 @@ export default function PartsInventoryPage() {
     supplier: '',
     supplier_contact: '',
     location: '',
-    status: 'in_stock' as const
+    status: 'in_stock',
+    notes: ''
   });
 
   const categories = [
@@ -106,14 +114,13 @@ export default function PartsInventoryPage() {
     return null;
   };
 
-  const loadParts = async () => {
+  const loadParts = useCallback(async () => {
     try {
       setLoading(true);
       const partnerId = await getPartnerId();
       if (!partnerId) { setParts([]); setFiltered([]); return; }
 
-      // For now, we'll create mock data since parts_inventory table doesn't exist
-      // In production, this would be a real Supabase query
+      // Mock data since parts table doesn't exist yet
       const mockParts: Part[] = [
         {
           id: '1',
@@ -122,14 +129,14 @@ export default function PartsInventoryPage() {
           part_number: 'OF-001',
           category: 'Engine Parts',
           description: 'High-quality oil filter for various engine types',
-          quantity: 45,
-          min_quantity: 10,
-          unit_cost: 12.50,
-          supplier: 'AutoParts Pro',
-          supplier_contact: 'contact@autopartspro.com',
+          quantity: 25,
+          min_quantity: 5,
+          unit_cost: 8.50,
+          supplier: 'AutoParts UK',
+          supplier_contact: '020 7946 0958',
           location: 'Warehouse A - Shelf 1',
           status: 'in_stock',
-          last_restocked: new Date(Date.now() - 7 * 24 * 60 * 60 * 1000).toISOString(),
+          last_restocked: new Date().toISOString(),
           created_at: new Date().toISOString(),
           updated_at: new Date().toISOString()
         },
@@ -141,13 +148,13 @@ export default function PartsInventoryPage() {
           category: 'Brake System',
           description: 'Ceramic brake pads for front wheels',
           quantity: 8,
-          min_quantity: 15,
+          min_quantity: 10,
           unit_cost: 45.00,
-          supplier: 'Brake Masters',
-          supplier_contact: 'sales@brakemasters.co.uk',
+          supplier: 'BrakeTech Ltd',
+          supplier_contact: '0333 321 4567',
           location: 'Warehouse B - Shelf 3',
           status: 'low_stock',
-          last_restocked: new Date(Date.now() - 14 * 24 * 60 * 60 * 1000).toISOString(),
+          last_restocked: new Date().toISOString(),
           created_at: new Date().toISOString(),
           updated_at: new Date().toISOString()
         },
@@ -157,15 +164,15 @@ export default function PartsInventoryPage() {
           name: 'Air Filter',
           part_number: 'AF-003',
           category: 'Engine Parts',
-          description: 'Premium air filter for improved engine performance',
+          description: 'Performance air filter for improved airflow',
           quantity: 0,
-          min_quantity: 5,
-          unit_cost: 18.75,
-          supplier: 'Filter World',
-          supplier_contact: 'orders@filterworld.com',
+          min_quantity: 15,
+          unit_cost: 12.00,
+          supplier: 'FilterPro',
+          supplier_contact: '0800 123 4567',
           location: 'Warehouse A - Shelf 2',
           status: 'out_of_stock',
-          last_restocked: new Date(Date.now() - 30 * 24 * 60 * 60 * 1000).toISOString(),
+          last_restocked: new Date().toISOString(),
           created_at: new Date().toISOString(),
           updated_at: new Date().toISOString()
         }
@@ -174,19 +181,19 @@ export default function PartsInventoryPage() {
       setParts(mockParts);
       setFiltered(mockParts);
     } catch (e) {
-      console.error('loadParts error', e);
+      // Handle error silently or log to monitoring service
       setParts([]);
       setFiltered([]);
     } finally {
       setLoading(false);
     }
-  };
+  }, [user]);
 
   useEffect(() => {
     if (authLoading) return;
     if (!user) { router.replace('/auth/login'); return; }
     if (didInitRef.current) return; didInitRef.current = true; loadParts();
-  }, [user, authLoading]);
+  }, [user, authLoading, router, loadParts]);
 
   useEffect(() => {
     let list = [...parts];
@@ -223,7 +230,18 @@ export default function PartsInventoryPage() {
       const newPart: Part = {
         id: Date.now().toString(),
         partner_id: await getPartnerId() || '',
-        ...formData,
+        name: formData.name,
+        part_number: formData.part_number,
+        category: formData.category,
+        description: formData.description,
+        quantity: formData.quantity,
+        min_quantity: formData.min_quantity,
+        unit_cost: formData.unit_cost,
+        supplier: formData.supplier,
+        supplier_contact: formData.supplier_contact,
+        location: formData.location,
+        status: formData.status,
+        last_restocked: new Date().toISOString(),
         created_at: new Date().toISOString(),
         updated_at: new Date().toISOString()
       };
@@ -246,7 +264,8 @@ export default function PartsInventoryPage() {
       supplier: '',
       supplier_contact: '',
       location: '',
-      status: 'in_stock'
+      status: 'in_stock',
+      notes: ''
     });
   };
 
@@ -263,7 +282,8 @@ export default function PartsInventoryPage() {
       supplier: part.supplier,
       supplier_contact: part.supplier_contact,
       location: part.location,
-      status: part.status
+      status: part.status,
+      notes: '' // Assuming notes are not part of the edit form, so set to empty
     });
     setShowForm(true);
   };
@@ -322,7 +342,7 @@ export default function PartsInventoryPage() {
           <div className="bg-white p-6 rounded-xl shadow-sm border border-gray-200">
             <div className="flex items-center gap-4">
               <div className="bg-blue-500 p-3 rounded-lg">
-                <FaBoxes className="w-6 h-6 text-white" />
+                <FaBox className="w-6 h-6 text-white" />
               </div>
               <div>
                 <p className="text-sm font-medium text-gray-600">Total Parts</p>
@@ -370,7 +390,7 @@ export default function PartsInventoryPage() {
           <div className="bg-white p-6 rounded-xl shadow-sm border border-gray-200">
             <div className="flex items-center gap-4">
               <div className="bg-purple-500 p-3 rounded-lg">
-                <FaMoneyBillWave className="w-6 h-6 text-white" />
+                <FaFileAlt className="w-6 h-6 text-white" />
               </div>
               <div>
                 <p className="text-sm font-medium text-gray-600">Total Value</p>
@@ -437,7 +457,7 @@ export default function PartsInventoryPage() {
           </div>
           {filtered.length === 0 ? (
             <div className="text-center py-12">
-              <FaBoxes className="mx-auto h-12 w-12 text-gray-400" />
+              <FaBox className="mx-auto h-12 w-12 text-gray-400" />
               <h3 className="mt-2 text-sm font-medium text-gray-900">No parts found</h3>
               <p className="mt-1 text-sm text-gray-500">Add your first part to get started.</p>
             </div>
@@ -508,12 +528,11 @@ export default function PartsInventoryPage() {
       {showForm && (
         <>
           <div
-            className="fixed inset-0 bg-black bg-opacity-50 z-40"
-            style={{ left: sidebarLeft }}
+            className="modal-overlay-backdrop"
             onClick={() => setShowForm(false)}
           />
-          <div className="fixed inset-0 flex items-center justify-center p-4 z-50">
-            <div className="bg-white rounded-lg shadow-xl max-w-2xl w-full max-h-[90vh] overflow-y-auto">
+          <div className="modal-overlay pointer-events-none">
+            <div className="modal-content w-full max-w-2xl mx-4 pointer-events-auto">
               <div className="p-6 border-b border-gray-200">
                 <h2 className="text-xl font-semibold text-gray-900">
                   {editingPart ? 'Edit Part' : 'Add New Part'}

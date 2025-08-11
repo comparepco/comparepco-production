@@ -32,6 +32,17 @@ const navigation = [
     category: 'main'
   },
 
+  // CALENDAR
+  {
+    name: 'Calendar',
+    href: '/partner/calendar',
+    icon: FaCalendar,
+    color: 'text-purple-600',
+    bgColor: 'bg-purple-100',
+    requiredPermission: null, // Always visible
+    category: 'calendar'
+  },
+
   // FLEET MANAGEMENT
   {
     name: 'Fleet Management',
@@ -1137,7 +1148,7 @@ export default function PartnerLayout({
         {/* Click outside to close notifications */}
         {showNotifications && (
           <div 
-            className="fixed inset-0 z-40" 
+            className="modal-overlay-backdrop"
             onClick={() => setShowNotifications(false)}
           />
         )}

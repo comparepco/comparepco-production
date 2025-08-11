@@ -63,7 +63,7 @@ export async function POST(request: NextRequest) {
       email_confirm: true,
       user_metadata: {
         name,
-        role: 'partner',
+        role: 'PARTNER',
         accountType: 'partner'
       },
       app_metadata: {
@@ -136,7 +136,7 @@ export async function POST(request: NextRequest) {
         phone,
         first_name: name.split(' ')[0] || name,
         last_name: name.split(' ').slice(1).join(' ') || '',
-        role: 'partner',
+        role: 'PARTNER',
         is_active: true,
         is_verified: false,
         created_at: new Date().toISOString(),

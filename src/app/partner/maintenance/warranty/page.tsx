@@ -1,11 +1,11 @@
 'use client';
-import React, { useEffect, useState } from 'react';
+import * as React from 'react';
+import { useEffect, useState, useCallback } from 'react';
 import { useAuth } from '@/contexts/AuthContext';
 import { useRouter } from 'next/navigation';
 import {
   FaShieldAlt,
   FaSearch,
-  FaFilter,
   FaDownload,
   FaPlus,
   FaEdit,
@@ -13,16 +13,9 @@ import {
   FaExclamationTriangle,
   FaCheckCircle,
   FaClock,
-  FaCalendarAlt,
-  FaFileAlt,
-  FaCar,
-  FaTools,
-  FaUser,
-  FaPhone,
-  FaEnvelope
+  FaFileAlt
 } from 'react-icons/fa';
 import { createClient } from '@supabase/supabase-js';
-import { useSidebar } from '@/contexts/SidebarContext';
 
 const supabase = createClient(
   process.env.NEXT_PUBLIC_SUPABASE_URL!,
@@ -67,7 +60,6 @@ export default function WarrantyManagementPage() {
   const { user, loading: authLoading } = useAuth();
   const router = useRouter();
   const didInitRef = React.useRef(false);
-  const { sidebarLeft } = useSidebar();
 
   const [warranties, setWarranties] = useState<Warranty[]>([]);
   const [filtered, setFiltered] = useState<Warranty[]>([]);
@@ -82,11 +74,29 @@ export default function WarrantyManagementPage() {
   const [providerFilter, setProviderFilter] = useState('all');
 
   // Form data
-  const [formData, setFormData] = useState({
+  const [formData, setFormData] = useState<{
+    vehicle_id: string;
+    vehicle_name: string;
+    vehicle_plate: string;
+    warranty_type: Warranty['warranty_type'];
+    provider: string;
+    policy_number: string;
+    start_date: string;
+    end_date: string;
+    coverage_details: string;
+    terms_conditions: string;
+    contact_name: string;
+    contact_phone: string;
+    contact_email: string;
+    contact_address: string;
+    cost: number;
+    deductible: number;
+    notes: string;
+  }>({
     vehicle_id: '',
     vehicle_name: '',
     vehicle_plate: '',
-    warranty_type: 'manufacturer' as const,
+    warranty_type: 'manufacturer',
     provider: '',
     policy_number: '',
     start_date: '',
@@ -110,21 +120,21 @@ export default function WarrantyManagementPage() {
     { value: 'other', label: 'Other' }
   ];
 
-  const getPartnerId = async () => {
-    if (!user) return null;
-    if (user.role === 'PARTNER') return user.id;
-    if (user.role === 'PARTNER_STAFF') {
-      const { data } = await supabase
-        .from('partner_staff')
-        .select('partner_id')
-        .eq('user_id', user.id)
-        .maybeSingle();
-      return data?.partner_id ?? null;
-    }
-    return null;
-  };
+  const loadWarranties = useCallback(async () => {
+    const getPartnerId = async () => {
+      if (!user) return null;
+      if (user.role === 'PARTNER') return user.id;
+      if (user.role === 'PARTNER_STAFF') {
+        const { data } = await supabase
+          .from('partner_staff')
+          .select('partner_id')
+          .eq('user_id', user.id)
+          .maybeSingle();
+        return data?.partner_id ?? null;
+      }
+      return null;
+    };
 
-  const loadWarranties = async () => {
     try {
       setLoading(true);
       const partnerId = await getPartnerId();
@@ -230,19 +240,19 @@ export default function WarrantyManagementPage() {
       setWarranties(mockWarranties);
       setFiltered(mockWarranties);
     } catch (e) {
-      console.error('loadWarranties error', e);
+      // Handle error silently or log to monitoring service
       setWarranties([]);
       setFiltered([]);
     } finally {
       setLoading(false);
     }
-  };
+  }, [user]);
 
   useEffect(() => {
     if (authLoading) return;
     if (!user) { router.replace('/auth/login'); return; }
     if (didInitRef.current) return; didInitRef.current = true; loadWarranties();
-  }, [user, authLoading]);
+  }, [user, authLoading, router, loadWarranties]);
 
   useEffect(() => {
     let list = [...warranties];
@@ -291,6 +301,20 @@ export default function WarrantyManagementPage() {
         updated_at: new Date().toISOString()
       } : w));
     } else {
+      const getPartnerId = async () => {
+        if (!user) return null;
+        if (user.role === 'PARTNER') return user.id;
+        if (user.role === 'PARTNER_STAFF') {
+          const { data } = await supabase
+            .from('partner_staff')
+            .select('partner_id')
+            .eq('user_id', user.id)
+            .maybeSingle();
+          return data?.partner_id ?? null;
+        }
+        return null;
+      };
+
       const newWarranty: Warranty = {
         id: Date.now().toString(),
         partner_id: await getPartnerId() || '',
@@ -331,7 +355,7 @@ export default function WarrantyManagementPage() {
       vehicle_id: '',
       vehicle_name: '',
       vehicle_plate: '',
-      warranty_type: 'manufacturer',
+      warranty_type: 'manufacturer' as Warranty['warranty_type'],
       provider: '',
       policy_number: '',
       start_date: '',
@@ -625,12 +649,11 @@ export default function WarrantyManagementPage() {
       {showForm && (
         <>
           <div
-            className="fixed inset-0 bg-black bg-opacity-50 z-40"
-            style={{ left: sidebarLeft }}
+            className="modal-overlay-backdrop"
             onClick={() => setShowForm(false)}
           />
-          <div className="fixed inset-0 flex items-center justify-center p-4 z-50">
-            <div className="bg-white rounded-lg shadow-xl max-w-4xl w-full max-h-[90vh] overflow-y-auto">
+          <div className="modal-overlay pointer-events-none">
+            <div className="modal-content w-full max-w-4xl mx-4 pointer-events-auto">
               <div className="p-6 border-b border-gray-200">
                 <h2 className="text-xl font-semibold text-gray-900">
                   {editingWarranty ? 'Edit Warranty' : 'Add New Warranty'}

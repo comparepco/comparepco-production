@@ -476,7 +476,7 @@ export default function LiveChatWidget({ bookingId, vehicleId, className = '' }:
     ] : []),
     
     // Partner-specific issues
-    ...(user?.role === 'partner' ? [
+    ...(user?.role === 'PARTNER' ? [
       {
         id: 'partner-driver-disputes',
         title: 'Driver Disputes',

@@ -1,32 +1,40 @@
 'use client';
 
-import React from 'react';
-import { useAuth } from '@/contexts/AuthContext';
-import { Role, ROLE_LABELS } from '@/lib/auth/roles';
+import React, { useMemo } from 'react';
 import {
   FaUsers,
-  FaCar,
-  FaCalendarCheck,
-  FaFileAlt,
   FaChartLine,
-  FaBullhorn,
-  FaHeadset,
-  FaEdit,
-  FaShieldAlt,
-  FaCogs,
-  FaBell,
-  FaPlug,
-  FaUserCog,
+  FaCheckCircle,
   FaCog,
-  FaChartBar,
-  FaDollarSign,
-  FaClipboardCheck,
+  FaEdit,
+  FaBell,
+  FaUserTie,
   FaTachometerAlt,
   FaHandshake,
-  FaUserTie,
-  FaCheckCircle,
+  FaCalendarCheck,
+  FaFileAlt,
+  FaChartBar,
+  FaBullhorn,
+  FaHeadset,
+  FaShieldAlt,
+  FaCogs,
+  FaPlug,
+  FaChevronRight
 } from 'react-icons/fa';
 import Link from 'next/link';
+import { useAuth } from '@/contexts/AuthContext';
+
+type Role = 'SUPER_ADMIN' | 'ADMIN' | 'ADMIN_STAFF' | 'PARTNER' | 'PARTNER_STAFF' | 'DRIVER' | 'USER';
+
+const ROLE_LABELS = {
+  'SUPER_ADMIN': 'Super Admin',
+  'ADMIN': 'Admin',
+  'ADMIN_STAFF': 'Admin Staff',
+  'PARTNER': 'Partner',
+  'PARTNER_STAFF': 'Partner Staff',
+  'DRIVER': 'Driver',
+  'USER': 'User'
+};
 
 interface Tile {
   id: string;
@@ -223,6 +231,7 @@ export const tilesFor = (user: any) => {
       if (role === 'SUPER_ADMIN') return isSuperAdmin;
       if (role === 'ADMIN') return isAdmin || isSuperAdmin;
       if (role === 'ADMIN_STAFF') {
+  
         // For staff, also ensure sidebar_access permits this tile
         if (!(isAdminStaff || isAdmin || isSuperAdmin)) return false;
         // Map tile id to sidebar key (same id for dashboard, support etc.)
@@ -236,13 +245,6 @@ export const tilesFor = (user: any) => {
     });
 
     if (!hasAccess) return null;
-
-    const getRoleLabel = () => {
-      if (user.isSuperAdmin || primaryRole === 'SUPER_ADMIN' || primaryRole === 'superadmin') return ROLE_LABELS['SUPER_ADMIN'];
-      if (primaryRole === 'ADMIN' || userRoles.includes('ADMIN')) return ROLE_LABELS['ADMIN'];
-      if (primaryRole === 'ADMIN_STAFF' || userRoles.includes('ADMIN_STAFF')) return ROLE_LABELS['ADMIN_STAFF'];
-      return 'User';
-    };
 
     return true;
   });
@@ -258,58 +260,70 @@ export const getDisplayRoles = (user: any) => {
 };
 
 export default function DashboardTiles() {
-  const { user, loading } = useAuth();
+  const { user } = useAuth();
+  
+  // Memoize the tiles to prevent unnecessary re-computations
+  const userTiles = useMemo(() => {
+    if (!user) return [];
+    return tilesFor(user);
+  }, [user]);
 
-  if (loading) {
-    return (
-      <div className="flex items-center justify-center h-64">
-        <div className="animate-spin rounded-full h-12 w-12 border-t-2 border-b-2 border-blue-600"></div>
+  // Memoized tile component for better performance
+  const MemoizedTile = React.memo(({ tile }: { tile: Tile }) => (
+    <Link
+      href={tile.href}
+      className={`block p-6 bg-white rounded-xl shadow-sm border border-gray-200 hover:shadow-md hover:border-gray-300`}
+    >
+      <div className="flex items-center space-x-4">
+        <div className={`p-3 rounded-lg ${tile.color} text-white`}>
+          {tile.icon}
+        </div>
+        <div className="flex-1">
+          <h3 className="text-lg font-semibold text-gray-900">{tile.title}</h3>
+          <p className="text-sm text-gray-600 mt-1">{tile.description}</p>
+          {tile.stats && (
+            <div className="mt-2 flex items-center space-x-2">
+              <span className="text-2xl font-bold text-gray-900">{tile.stats.value}</span>
+              <span className={`text-sm ${
+                tile.stats.changeType === 'increase' ? 'text-green-600' : 'text-red-600'
+              }`}>
+                {tile.stats.change}
+              </span>
+            </div>
+          )}
+        </div>
+        <FaChevronRight className="w-5 h-5 text-gray-400" />
       </div>
-    );
-  }
+    </Link>
+  ));
 
   if (!user) {
     return (
-      <div className="text-center py-12">
-        <p className="text-gray-500">Please log in to view your dashboard.</p>
-      </div>
-    );
-  }
-
-  const availableTiles = tilesFor(user);
-  const userRoles: Role[] = (user as any).roles || [];
-
-  if (availableTiles.length === 0) {
-    return (
-      <div className="text-center py-12">
-        <div className="max-w-md mx-auto">
-          <div className="text-6xl text-gray-300 mb-4">🔒</div>
-          <h2 className="text-2xl font-semibold text-gray-600 mb-2">Access Not Granted</h2>
-          <p className="text-gray-500 mb-4">
-            You don't have any assigned roles or permissions to access dashboard features.
-          </p>
-          <p className="text-sm text-gray-400">Contact your administrator to request access permissions.</p>
+      <div className="min-h-screen bg-gray-50 flex items-center justify-center">
+        <div className="text-center">
+          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600 mx-auto"></div>
+          <p className="mt-4 text-gray-600">Loading dashboard...</p>
         </div>
       </div>
     );
   }
 
   return (
-    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
-      {availableTiles.map((tile) => (
-        <Link
-          key={tile.id}
-          href={tile.href}
-          className={`${tile.color} text-white rounded-lg p-6 transition-all duration-200 transform hover:scale-105 hover:shadow-lg`}
-        >
-          <div className="flex items-center justify-between mb-4">
-            <div className="text-white">{tile.icon}</div>
-            <div className="text-white/80 text-sm">{userRoles.includes(tile.id as Role) ? 'Access' : ''}</div>
-          </div>
-          <h3 className="text-lg font-semibold mb-2">{tile.title}</h3>
-          <p className="text-white/80 text-sm">{tile.description}</p>
-        </Link>
-      ))}
+    <div className="min-h-screen bg-gray-50">
+      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+        <div className="mb-8">
+          <h1 className="text-3xl font-bold text-gray-900">Dashboard</h1>
+          <p className="mt-2 text-lg text-gray-600">
+            Welcome back, {user.email}
+          </p>
+        </div>
+        
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+          {userTiles.map((tile) => (
+            <MemoizedTile key={tile.id} tile={tile} />
+          ))}
+        </div>
+      </div>
     </div>
   );
 } 

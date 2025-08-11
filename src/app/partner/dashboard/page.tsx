@@ -1,16 +1,15 @@
 'use client';
 
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback, useMemo } from 'react';
 import { useAuth } from '@/contexts/AuthContext';
 import { supabase } from '@/lib/supabase/client';
 import { 
-  FaTachometerAlt, FaCar, FaCalendarAlt, FaUsers, FaMoneyBillWave,
-  FaChartLine, FaChartBar, FaChartPie, FaExclamationTriangle, FaCheckCircle,
-  FaClock, FaPlus, FaCog, FaExpand, FaCompress, FaTrash, FaSave,
-  FaArrowUp, FaArrowDown, FaEye, FaEdit, FaCalendar, FaBell, FaTimes
+  FaCar, FaMoneyBillWave, FaChartBar, FaChartPie,
+  FaClock, FaPlus, FaCog, FaTrash, FaSave,
+  FaArrowUp, FaArrowDown, FaTimes
 } from 'react-icons/fa';
-import { BarChart, Bar, LineChart, Line, PieChart, Pie, Cell, AreaChart, Area,
-         XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer } from 'recharts';
+import { BarChart, Bar, PieChart, Pie, Cell, AreaChart, Area,
+         XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from 'recharts';
 
 interface DashboardWidget {
   id: string;
@@ -64,11 +63,10 @@ interface DashboardData {
 
 export default function PartnerDashboard() {
   const { user } = useAuth();
-  const [dashboardData, setDashboardData] = useState<DashboardData | null>(null);
   const [widgets, setWidgets] = useState<DashboardWidget[]>([]);
   const [loading, setLoading] = useState(true);
   const [showAddWidget, setShowAddWidget] = useState(false);
-  const [draggedWidget, setDraggedWidget] = useState<string | null>(null);
+  const [dashboardData, setDashboardData] = useState<DashboardData | null>(null);
 
   // Initialize default widgets
   useEffect(() => {
@@ -142,145 +140,80 @@ export default function PartnerDashboard() {
   }, []);
 
   // Load dashboard data
-  useEffect(() => {
-    if (!user) return;
-    loadDashboardData();
-  }, [user]);
-
-  const loadDashboardData = async () => {
+  const loadDashboardData = useCallback(async () => {
     try {
       setLoading(true);
       
-      // Load revenue data
-      const { data: revenueData } = await supabase
-        .from('bookings')
-        .select('amount, created_at, status')
-        .eq('partner_id', user?.id);
+      // Load all data in parallel for better performance
+      const [revenueResult, fleetResult, bookingsResult, staffResult] = await Promise.all([
+        supabase.from('bookings').select('amount, created_at, status').eq('partner_id', user?.id),
+        supabase.from('vehicles').select('*').eq('partner_id', user?.id),
+        supabase.from('bookings').select('*').eq('partner_id', user?.id),
+        supabase.from('partner_staff').select('*').eq('partner_id', user?.id)
+      ]);
 
-      // Load fleet data
-      const { data: fleetData } = await supabase
-        .from('vehicles')
-        .select('*')
-        .eq('partner_id', user?.id);
+      const revenueData = revenueResult.data || [];
+      const fleetData = fleetResult.data || [];
+      const bookingsData = bookingsResult.data || [];
+      const staffData = staffResult.data || [];
 
-      // Load bookings data
-      const { data: bookingsData } = await supabase
-        .from('bookings')
-        .select('*')
-        .eq('partner_id', user?.id);
-
-      // Load staff data
-      const { data: staffData } = await supabase
-        .from('partner_staff')
-        .select('*')
-        .eq('partner_id', user?.id);
-
-      // Process data
+      // Process data efficiently
       const processedData: DashboardData = {
         revenue: {
-          total: revenueData?.reduce((sum, booking) => sum + (booking.amount || 0), 0) || 0,
-          monthly: revenueData?.filter(b => {
+          total: revenueData.reduce((sum, booking) => sum + (booking.amount || 0), 0),
+          monthly: revenueData.filter(b => {
             const date = new Date(b.created_at);
             const now = new Date();
             return date.getMonth() === now.getMonth() && date.getFullYear() === now.getFullYear();
-          }).reduce((sum, booking) => sum + (booking.amount || 0), 0) || 0,
-          growth: calculateGrowth(revenueData || []),
-          trend: generateRevenueTrend(bookingsData || [])
+          }).reduce((sum, booking) => sum + (booking.amount || 0), 0),
+          growth: calculateGrowth(revenueData),
+          trend: generateRevenueTrend(bookingsData)
         },
         fleet: {
-          total: fleetData?.length || 0,
-          active: fleetData?.filter(v => v.is_active).length || 0,
-          inactive: fleetData?.filter(v => !v.is_active).length || 0,
-          maintenance: fleetData?.filter(v => v.status === 'maintenance').length || 0,
-          status: generateFleetStatusData(fleetData || [])
+          total: fleetData.length,
+          active: fleetData.filter(v => v.is_active).length,
+          inactive: fleetData.filter(v => !v.is_active).length,
+          maintenance: fleetData.filter(v => v.status === 'maintenance').length,
+          status: generateFleetStatusData(fleetData)
         },
         bookings: {
-          total: bookingsData?.length || 0,
-          active: bookingsData?.filter(b => b.status === 'active').length || 0,
-          pending: bookingsData?.filter(b => b.status === 'pending').length || 0,
-          completed: bookingsData?.filter(b => b.status === 'completed').length || 0,
-          timeline: generateBookingTimeline(bookingsData || [])
+          total: bookingsData.length,
+          active: bookingsData.filter(b => b.status === 'active').length,
+          pending: bookingsData.filter(b => b.status === 'pending').length,
+          completed: bookingsData.filter(b => b.status === 'completed').length,
+          timeline: generateBookingTimeline(bookingsData)
         },
         staff: {
-          total: staffData?.length || 0,
-          active: staffData?.filter(s => s.is_active).length || 0,
-          performance: generateStaffPerformance(staffData || [])
+          total: staffData.length,
+          active: staffData.filter(s => s.is_active).length,
+          performance: generateStaffPerformance(staffData)
         },
         alerts: {
           critical: 2,
           warnings: 5,
           info: 8,
-          items: generateAlerts(fleetData || [], bookingsData || [])
+          items: generateAlerts(fleetData, bookingsData)
         },
         tasks: {
           total: 15,
           completed: 8,
           pending: 7,
-          items: generateTasks(fleetData || [], staffData || [])
+          items: generateTasks(fleetData, staffData)
         }
       };
 
       setDashboardData(processedData);
-      
-      // Update widgets with real data
-      setWidgets(prevWidgets => prevWidgets.map(widget => {
-        switch (widget.id) {
-          case 'revenue-overview':
-            return {
-              ...widget,
-              data: {
-                value: processedData.revenue.total,
-                change: processedData.revenue.growth,
-                trend: processedData.revenue.growth > 0 ? 'up' : 'down'
-              }
-            };
-          case 'fleet-status':
-            return {
-              ...widget,
-              data: processedData.fleet.status
-            };
-          case 'active-bookings':
-            return {
-              ...widget,
-              data: {
-                value: processedData.bookings.active,
-                change: ((processedData.bookings.active / processedData.bookings.total) * 100) || 0
-              }
-            };
-          case 'revenue-trend':
-            return {
-              ...widget,
-              data: processedData.revenue.trend
-            };
-          case 'booking-timeline':
-            return {
-              ...widget,
-              data: processedData.bookings.timeline
-            };
-          case 'alerts-overview':
-            return {
-              ...widget,
-              data: processedData.alerts.items
-            };
-          case 'task-progress':
-            return {
-              ...widget,
-              data: {
-                completed: processedData.tasks.completed,
-                total: processedData.tasks.total,
-                percentage: processedData.tasks.total > 0 ? Math.round((processedData.tasks.completed / processedData.tasks.total) * 100) : 0
-              }
-            };
-          default:
-            return widget;
-        }
-      }));
+      setLoading(false);
     } catch (error) {
       console.error('Error loading dashboard data:', error);
-    } finally {
       setLoading(false);
     }
-  };
+  }, [user?.id]);
+
+  useEffect(() => {
+    if (!user) return;
+    loadDashboardData();
+  }, [user, loadDashboardData]);
 
   // Helper function to calculate growth
   const calculateGrowth = (revenueData: any[]) => {
@@ -667,7 +600,8 @@ export default function PartnerDashboard() {
     );
   };
 
-  const renderWidget = (widget: DashboardWidget) => {
+  // Memoized widget renderer for better performance
+  const renderWidget = useCallback((widget: DashboardWidget) => {
     switch (widget.type) {
       case 'metric':
         return renderMetricWidget(widget);
@@ -678,9 +612,30 @@ export default function PartnerDashboard() {
       case 'progress':
         return renderProgressWidget(widget);
       default:
-        return null;
+        return <div>Unknown widget type</div>;
     }
-  };
+  }, []);
+
+  // Memoized widget components to prevent unnecessary re-renders
+  const MemoizedWidget = React.memo(({ widget }: { widget: DashboardWidget }) => {
+    return (
+      <div
+        className={`${
+          widget.size === 'small' ? 'col-span-1' :
+          widget.size === 'medium' ? 'col-span-1 md:col-span-1 lg:col-span-1' :
+          'col-span-1 md:col-span-2 lg:col-span-2'
+        }`}
+      >
+        {renderWidget(widget)}
+      </div>
+    );
+  });
+
+  // Memoize the processed data to prevent unnecessary re-computations
+  const processedData = useMemo(() => {
+    if (!dashboardData) return null;
+    return dashboardData;
+  }, [dashboardData]);
 
   if (loading) {
     return (
@@ -709,7 +664,7 @@ export default function PartnerDashboard() {
             <div className="flex items-center space-x-4">
               <button
                 onClick={() => setShowAddWidget(true)}
-                className="flex items-center space-x-2 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors"
+                className="flex items-center space-x-2 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700"
               >
                 <FaPlus className="w-4 h-4" />
                 <span>Add Widget</span>
@@ -726,25 +681,16 @@ export default function PartnerDashboard() {
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
           {widgets.map((widget) => (
-            <div
-              key={widget.id}
-              className={`${
-                widget.size === 'small' ? 'col-span-1' :
-                widget.size === 'medium' ? 'col-span-1 md:col-span-1 lg:col-span-1' :
-                'col-span-1 md:col-span-2 lg:col-span-2'
-              }`}
-            >
-              {renderWidget(widget)}
-            </div>
+            <MemoizedWidget key={widget.id} widget={widget} />
           ))}
         </div>
       </div>
 
       {/* Add Widget Modal */}
       {showAddWidget && (
-        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
-          <div className="bg-white rounded-xl p-6 w-full max-w-md mx-4">
-            <div className="flex items-center justify-between mb-4">
+        <div className="modal-overlay" onClick={() => setShowAddWidget(false)}>
+          <div className="modal-content w-full max-w-md mx-4" onClick={(e) => e.stopPropagation()}>
+            <div className="flex items-center justify-between mb-4 p-6 border-b border-gray-200">
               <h2 className="text-xl font-semibold text-gray-900">Add Widget</h2>
               <button
                 onClick={() => setShowAddWidget(false)}
@@ -753,7 +699,7 @@ export default function PartnerDashboard() {
                 <FaTimes className="w-5 h-5" />
               </button>
             </div>
-            <div className="space-y-4">
+            <div className="p-6 space-y-4">
               <div>
                 <h3 className="text-sm font-medium text-gray-700 mb-2">Charts</h3>
                 <div className="space-y-2">

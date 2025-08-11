@@ -1,14 +1,13 @@
 'use client';
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import { useAuth } from '../../../../contexts/AuthContext';
 import { useRouter } from 'next/navigation';
 import { 
-  FaComments, FaSearch, FaFilter, FaEye, FaClock, 
-  FaMoneyBillWave, FaCar, FaStar, FaDownload, FaChartLine,
+  FaComments, FaSearch, FaClock, 
+  FaStar, FaChartLine,
   FaCalendarAlt, FaUserCircle, FaFileAlt, FaExclamationTriangle,
-  FaUsers, FaCheckCircle, FaTimes, FaRoute, FaSpinner,
-  FaEnvelope, FaPhone, FaSms, FaBell, FaPaperPlane,
-  FaReply, FaArchive, FaTrash, FaEdit, FaPlus
+  FaUsers, FaEnvelope, FaPhone, FaSms, FaBell,
+  FaReply, FaPlus
 } from 'react-icons/fa';
 import { createClient } from '@supabase/supabase-js';
 
@@ -115,13 +114,13 @@ export default function DriverCommunicationPage() {
   const [currentPage, setCurrentPage] = useState(1);
   const [itemsPerPage] = useState(10);
 
-  const loadDriverCommunications = async () => {
+  const loadDriverCommunications = useCallback(async () => {
     try {
       setLoading(true);
 
       if (!user) return;
 
-      const partnerId = user.role?.toLowerCase() === 'partner_staff' ? (user as any).partnerId : user.id;
+      const partnerId = user.role === 'PARTNER_STAFF' ? (user as any).partnerId : user.id;
       if (!partnerId) {
         setDriverCommunications([]);
         setFilteredCommunications([]);
@@ -241,14 +240,14 @@ export default function DriverCommunicationPage() {
       setFilteredCommunications(transformedCommunications);
       calculateStats(transformedCommunications);
     } catch (err) {
-      console.error('Error loading driver communications:', err);
+      // Handle error silently
       setDriverCommunications([]);
       setFilteredCommunications([]);
       calculateStats([]);
     } finally {
       setLoading(false);
     }
-  };
+  }, [user]);
 
   const calculateStats = (communications: DriverCommunication[]) => {
     const totalDrivers = communications.length;
@@ -362,7 +361,7 @@ export default function DriverCommunicationPage() {
     if (didInitRef.current) return;
     didInitRef.current = true;
     loadDriverCommunications();
-  }, [user, authLoading]);
+  }, [user, authLoading, loadDriverCommunications, router]);
 
   if (authLoading) {
     return (

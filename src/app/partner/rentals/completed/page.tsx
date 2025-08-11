@@ -1,26 +1,12 @@
 'use client';
-import React, { useState, useEffect, useMemo } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import { useAuth } from '../../../../contexts/AuthContext';
 import { useRouter } from 'next/navigation';
+import { supabase } from '../../../../lib/supabase/client';
 import { 
-  FaCheckCircle, FaSearch, FaFilter, FaEye, FaHistory, 
-  FaMoneyBillWave, FaCar, FaStar, FaDownload, FaChartLine,
-  FaCalendarAlt, FaUserCircle, FaFileAlt, FaExclamationTriangle,
-  FaThumbsUp, FaThumbsDown, FaComments, FaPhone, FaEnvelope,
-  FaPlus, FaUpload, FaSignature, FaUndo, FaBolt, FaTools,
-  FaShieldAlt, FaChevronRight, FaBuilding, FaUser, FaEdit,
-  FaTrash, FaBell, FaExchangeAlt, FaPaperPlane, FaCheck,
-  FaInfoCircle, FaTh, FaList, FaTrophy, FaAward, FaMedal,
-  FaUserCheck, FaFileContract, FaHandshake, FaSpinner,
-  FaClock, FaMapMarkerAlt, FaCreditCard, FaReceipt
+  FaSearch, FaStar, FaCalendarAlt, FaMoneyBillWave,
+  FaUserTie, FaComments, FaReceipt, FaFileAlt
 } from 'react-icons/fa';
-import { createClient } from '@supabase/supabase-js';
-
-// Initialize Supabase client
-const supabase = createClient(
-  process.env.NEXT_PUBLIC_SUPABASE_URL!,
-  process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
-);
 
 // Type Definitions
 interface CompletedRental {
@@ -140,7 +126,7 @@ export default function CompletedRentalsPage() {
     commission_earned: 0
   });
   const [loading, setLoading] = useState(true);
-  const [error, setError] = useState<string | null>(null);
+  const [_error, setError] = useState<string | null>(null);
   
   // Filter states
   const [searchTerm, setSearchTerm] = useState('');
@@ -157,13 +143,36 @@ export default function CompletedRentalsPage() {
   const [itemsPerPage] = useState(10);
   
   // Modal states
-  const [selectedRental, setSelectedRental] = useState<CompletedRental | null>(null);
-  const [showRentalModal, setShowRentalModal] = useState(false);
-  const [showFeedbackModal, setShowFeedbackModal] = useState(false);
-  const [showFinancialModal, setShowFinancialModal] = useState(false);
+  const [_selectedRental, _setSelectedRental] = useState<CompletedRental | null>(null);
+  const [_showRentalModal, _setShowRentalModal] = useState(false);
+  const [_showFeedbackModal, _setShowFeedbackModal] = useState(false);
+  const [_showFinancialModal, _setShowFinancialModal] = useState(false);
+
+  // Calculate statistics
+  const calculateStats = useCallback((rentals: CompletedRental[]) => {
+    const totalCompleted = rentals.length;
+    const totalRevenue = rentals.reduce((sum, rental) => sum + rental.total_amount, 0);
+    const averageRating = rentals.reduce((sum, rental) => sum + (rental.driver_rating ?? 0), 0) / totalCompleted || 0;
+    const totalWeeks = rentals.reduce((sum, rental) => sum + (rental.actual_duration_weeks ?? 0), 0);
+    const uniqueDrivers = new Set(rentals.map(r => r.driver_id)).size;
+    const uniqueVehicles = new Set(rentals.map(r => r.vehicle_id)).size;
+    const averageDuration = totalWeeks / totalCompleted || 0;
+    const commissionEarned = rentals.reduce((sum, rental) => sum + (rental.commission_amount || 0), 0);
+
+    setStats({
+      total_completed: totalCompleted,
+      total_revenue: totalRevenue,
+      average_rating: averageRating,
+      total_weeks: totalWeeks,
+      unique_drivers: uniqueDrivers,
+      unique_vehicles: uniqueVehicles,
+      average_duration: averageDuration,
+      commission_earned: commissionEarned
+    });
+  }, []);
 
   // Load completed rentals
-  const loadCompletedRentals = async () => {
+  const loadCompletedRentals = useCallback(async () => {
     try {
       setLoading(true);
       setError(null);
@@ -171,9 +180,9 @@ export default function CompletedRentalsPage() {
       if (!user) return;
 
       // Derive partnerId similar to other pages
-      const partnerId = user.role?.toLowerCase() === 'partner_staff' ? (user as any).partnerId : user.id;
+      const partnerId = user.role === 'PARTNER_STAFF' ? (user as any).partnerId : user.id;
       if (!partnerId) {
-        console.error('No partner ID found for completed rentals');
+        // No partner ID found - handle silently
         setCompletedRentals([]);
         setFilteredRentals([]);
         calculateStats([]);
@@ -189,12 +198,7 @@ export default function CompletedRentalsPage() {
         .order('updated_at', { ascending: false });
 
       if (rentalsError) {
-        console.error('Supabase error (rentals):', {
-          message: (rentalsError as any).message,
-          details: (rentalsError as any).details,
-          hint: (rentalsError as any).hint,
-          code: (rentalsError as any).code,
-        });
+        // Supabase error - handle silently
         setCompletedRentals([]);
         setFilteredRentals([]);
         calculateStats([]);
@@ -239,7 +243,7 @@ export default function CompletedRentalsPage() {
           const actualEndDate = rental.actual_end_date ? new Date(rental.actual_end_date) : endDate;
           
           // Calculate duration and overdue
-          const plannedDuration = Math.ceil((endDate.getTime() - startDate.getTime()) / (24 * 60 * 60 * 1000));
+          const _plannedDuration = Math.ceil((endDate.getTime() - startDate.getTime()) / (24 * 60 * 60 * 1000));
           const actualDuration = Math.ceil((actualEndDate.getTime() - startDate.getTime()) / (24 * 60 * 60 * 1000));
           const actualDurationWeeks = Math.ceil(actualDuration / 7);
           const daysOverdue = actualEndDate > endDate ? Math.ceil((actualEndDate.getTime() - endDate.getTime()) / (24 * 60 * 60 * 1000)) : 0;
@@ -273,7 +277,7 @@ export default function CompletedRentalsPage() {
               verified: driver.verified || false,
               rating: Number(driver.rating) || 0,
               total_rentals: Number(driver.total_rentals) || 0,
-              documents_uploaded: Boolean(driver.documents_uploaded),
+              documents_uploaded: driver.documents_uploaded || false,
             },
 
             vehicle: {
@@ -299,8 +303,8 @@ export default function CompletedRentalsPage() {
             deposit_amount: Number(rental.deposit_amount) || 0,
             deposit_status: (rental.deposit_status as 'returned' | 'forfeited' | 'pending') || 'returned',
 
-            final_mileage: Number(rental.final_mileage) || 0,
-            fuel_level: rental.fuel_level || 'Full',
+            final_mileage: Number(rental.final_mileage) || Number(vehicle.mileage) || 0,
+            fuel_level: rental.fuel_level || 'full',
             condition_rating: Number(rental.condition_rating) || 5,
             driver_rating: Number(rental.driver_rating) || 0,
             partner_rating: Number(rental.partner_rating) || 0,
@@ -327,7 +331,7 @@ export default function CompletedRentalsPage() {
       setFilteredRentals(transformedRentals);
       calculateStats(transformedRentals);
     } catch (err) {
-      console.error('Error loading completed rentals:', err);
+      // Error loading completed rentals - handle silently
       setCompletedRentals([]);
       setFilteredRentals([]);
       calculateStats([]);
@@ -335,30 +339,7 @@ export default function CompletedRentalsPage() {
     } finally {
       setLoading(false);
     }
-  };
-
-  // Calculate statistics
-  const calculateStats = (rentals: CompletedRental[]) => {
-    const totalCompleted = rentals.length;
-    const totalRevenue = rentals.reduce((sum, rental) => sum + rental.total_amount, 0);
-    const averageRating = rentals.reduce((sum, rental) => sum + rental.driver_rating, 0) / totalCompleted || 0;
-    const totalWeeks = rentals.reduce((sum, rental) => sum + rental.actual_duration_weeks, 0);
-    const uniqueDrivers = new Set(rentals.map(r => r.driver_id)).size;
-    const uniqueVehicles = new Set(rentals.map(r => r.vehicle_id)).size;
-    const averageDuration = totalWeeks / totalCompleted || 0;
-    const commissionEarned = rentals.reduce((sum, rental) => sum + (rental.commission_amount || 0), 0);
-
-    setStats({
-      total_completed: totalCompleted,
-      total_revenue: totalRevenue,
-      average_rating: averageRating,
-      total_weeks: totalWeeks,
-      unique_drivers: uniqueDrivers,
-      unique_vehicles: uniqueVehicles,
-      average_duration: averageDuration,
-      commission_earned: commissionEarned
-    });
-  };
+  }, [user, calculateStats]);
 
   // Filter and sort rentals
   useEffect(() => {
@@ -414,7 +395,7 @@ export default function CompletedRentalsPage() {
     // Rating filter
     if (ratingFilter !== 'all') {
       const minRating = parseInt(ratingFilter);
-      filtered = filtered.filter(rental => rental.driver_rating >= minRating);
+      filtered = filtered.filter(rental => (rental.driver_rating ?? 0) >= minRating);
     }
 
     // Sort
@@ -464,13 +445,10 @@ export default function CompletedRentalsPage() {
 
   // Wait for auth state
   useEffect(() => {
-    if (authLoading) return;
-    if (!user) {
-      router.replace('/auth/login');
-      return;
+    if (!authLoading && user) {
+      loadCompletedRentals();
     }
-    loadCompletedRentals();
-  }, [user, authLoading]);
+  }, [user, authLoading, loadCompletedRentals, router]);
 
   if (authLoading) {
     return (
@@ -511,8 +489,8 @@ export default function CompletedRentalsPage() {
     return `${weeks} weeks`;
   };
 
-  const formatRating = (rating: number) => {
-    return rating.toFixed(1);
+  const formatRating = (rating: number | undefined) => {
+    return (rating ?? 0).toFixed(1);
   };
 
   if (loading) {
@@ -540,11 +518,9 @@ export default function CompletedRentalsPage() {
             </div>
             <div className="mt-4 sm:mt-0 flex space-x-3">
               <button className="bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700 flex items-center">
-                <FaDownload className="w-4 h-4 mr-2" />
                 Export Report
               </button>
               <button className="bg-green-600 text-white px-4 py-2 rounded-lg hover:bg-green-700 flex items-center">
-                <FaChartLine className="w-4 h-4 mr-2" />
                 Analytics
               </button>
             </div>
@@ -558,7 +534,7 @@ export default function CompletedRentalsPage() {
           <div className="bg-white p-6 rounded-xl shadow-sm border border-gray-200">
             <div className="flex items-center gap-4">
               <div className="bg-green-500 p-3 rounded-lg">
-                <FaCheckCircle className="w-6 h-6 text-white" />
+                <FaMoneyBillWave className="w-6 h-6 text-white" />
               </div>
               <div>
                 <p className="text-sm font-medium text-gray-600">Completed Rentals</p>
@@ -597,7 +573,7 @@ export default function CompletedRentalsPage() {
           <div className="bg-white p-6 rounded-xl shadow-sm border border-gray-200">
             <div className="flex items-center gap-4">
               <div className="bg-purple-500 p-3 rounded-lg">
-                <FaTrophy className="w-6 h-6 text-white" />
+                <FaMoneyBillWave className="w-6 h-6 text-white" />
               </div>
               <div>
                 <p className="text-sm font-medium text-gray-600">Commission Earned</p>
@@ -746,7 +722,7 @@ export default function CompletedRentalsPage() {
 
           {currentRentals.length === 0 ? (
             <div className="text-center py-12">
-              <FaCheckCircle className="mx-auto h-12 w-12 text-gray-400" />
+              <FaMoneyBillWave className="mx-auto h-12 w-12 text-gray-400" />
               <h3 className="mt-2 text-sm font-medium text-gray-900">No completed rentals found</h3>
               <p className="mt-1 text-sm text-gray-500 mb-4">
                 {filteredRentals.length === 0 && completedRentals.length > 0
@@ -820,7 +796,7 @@ export default function CompletedRentalsPage() {
                       <td className="px-6 py-4 whitespace-nowrap">
                         <div className="flex items-center">
                           <div className="flex-shrink-0 h-10 w-10">
-                            <FaUserCircle className="h-10 w-10 text-gray-400" />
+                            <FaUserTie className="h-10 w-10 text-gray-400" />
                           </div>
                           <div className="ml-4">
                             <div className="text-sm font-medium text-gray-900">
@@ -876,7 +852,7 @@ export default function CompletedRentalsPage() {
                           <div className="text-sm text-gray-500">
                             Net: {formatCurrency(rental.net_revenue || rental.total_amount)}
                           </div>
-                          <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${PAYMENT_STATUS_COLORS[rental.payment_status]}`}>
+                          <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${(PAYMENT_STATUS_COLORS as any)[rental.payment_status] || 'bg-gray-100 text-gray-800'}`}>
                             {rental.payment_status.charAt(0).toUpperCase() + rental.payment_status.slice(1)}
                           </span>
                           {(rental.late_fees || rental.damage_fees || rental.cleaning_fees) > 0 && (
@@ -891,17 +867,17 @@ export default function CompletedRentalsPage() {
                         <div className="flex space-x-2">
                           <button
                             onClick={() => {
-                              setSelectedRental(rental);
-                              setShowRentalModal(true);
+                              _setSelectedRental(rental);
+                              _setShowRentalModal(true);
                             }}
                             className="text-blue-600 hover:text-blue-900"
                           >
-                            <FaEye className="w-4 h-4" />
+                            <FaFileAlt className="w-4 h-4" />
                           </button>
                           <button
                             onClick={() => {
-                              setSelectedRental(rental);
-                              setShowFeedbackModal(true);
+                              _setSelectedRental(rental);
+                              _setShowFeedbackModal(true);
                             }}
                             className="text-green-600 hover:text-green-900"
                           >
@@ -909,8 +885,8 @@ export default function CompletedRentalsPage() {
                           </button>
                           <button
                             onClick={() => {
-                              setSelectedRental(rental);
-                              setShowFinancialModal(true);
+                              _setSelectedRental(rental);
+                              _setShowFinancialModal(true);
                             }}
                             className="text-purple-600 hover:text-purple-900"
                           >

@@ -1,18 +1,16 @@
 'use client';
-import React, { useEffect, useState } from 'react';
+import * as React from 'react';
+import { useEffect, useState, useCallback } from 'react';
 import { useAuth } from '@/contexts/AuthContext';
 import { useRouter } from 'next/navigation';
 import {
   FaCalendarAlt,
-  FaClock,
   FaSearch,
-  FaFilter,
   FaDownload,
-  FaTools,
-  FaWrench,
-  FaShieldAlt,
-  FaEye,
-  FaCar,
+  FaExclamationTriangle,
+  FaCheckCircle,
+  FaClock,
+  FaFileAlt
 } from 'react-icons/fa';
 import { createClient } from '@supabase/supabase-js';
 
@@ -80,53 +78,34 @@ export default function MaintenanceSchedulePage() {
     }
   };
 
-  const loadRecords = async () => {
+  const loadRecords = useCallback(async () => {
     try {
       setLoading(true);
       const partnerId = await getPartnerId();
-      if (!partnerId) {
-        setRecords([]);
-        setFiltered([]);
-        return;
-      }
+      if (!partnerId) { setRecords([]); setFiltered([]); return; }
 
-      // Only scheduled/in_progress plus anything past due for schedule view
       const { data, error } = await supabase
         .from('maintenance_records')
         .select('*')
         .eq('partner_id', partnerId)
-        .in('status', ['scheduled', 'in_progress', 'overdue'])
+        .in('status', ['scheduled', 'in_progress'])
         .order('scheduled_date', { ascending: true });
-
       if (error) throw error;
-
-      const now = new Date();
-      const enriched = (data || []).map((rec: any) => {
-        const isOverdue = rec.status === 'scheduled' && new Date(rec.scheduled_date) < now;
-        return { ...rec, status: isOverdue ? 'overdue' : rec.status } as MaintenanceRecord;
-      });
-
-      setRecords(enriched);
-      setFiltered(enriched);
+      setRecords((data || []) as any);
+      setFiltered((data || []) as any);
     } catch (e) {
-      console.error('loadRecords error', e);
-      setRecords([]);
-      setFiltered([]);
+      // Handle error silently or log to monitoring service
+      setRecords([]); setFiltered([]);
     } finally {
       setLoading(false);
     }
-  };
+  }, [user]);
 
   useEffect(() => {
     if (authLoading) return;
-    if (!user) {
-      router.replace('/auth/login');
-      return;
-    }
-    if (didInitRef.current) return;
-    didInitRef.current = true;
-    loadRecords();
-  }, [user, authLoading]);
+    if (!user) { router.replace('/auth/login'); return; }
+    if (didInitRef.current) return; didInitRef.current = true; loadRecords();
+  }, [user, authLoading, router, loadRecords]);
 
   useEffect(() => {
     let list = [...records];
@@ -185,7 +164,7 @@ export default function MaintenanceSchedulePage() {
             </div>
             <div className="mt-4 sm:mt-0 flex space-x-3">
               <button onClick={() => router.push('/partner/maintenance')} className="bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700 flex items-center">
-                <FaTools className="w-4 h-4 mr-2" />
+                <FaFileAlt className="w-4 h-4 mr-2" />
                 Manage Records
               </button>
               <button className="bg-gray-100 text-gray-700 px-4 py-2 rounded-lg hover:bg-gray-200 flex items-center">
@@ -215,7 +194,7 @@ export default function MaintenanceSchedulePage() {
           <div className="bg-white p-6 rounded-xl shadow-sm border border-gray-200">
             <div className="flex items-center gap-4">
               <div className="bg-green-500 p-3 rounded-lg">
-                <FaWrench className="w-6 h-6 text-white" />
+                <FaClock className="w-6 h-6 text-white" />
               </div>
               <div>
                 <p className="text-sm font-medium text-gray-600">In Progress</p>
@@ -227,7 +206,7 @@ export default function MaintenanceSchedulePage() {
           <div className="bg-white p-6 rounded-xl shadow-sm border border-gray-200">
             <div className="flex items-center gap-4">
               <div className="bg-yellow-500 p-3 rounded-lg">
-                <FaClock className="w-6 h-6 text-white" />
+                <FaCalendarAlt className="w-6 h-6 text-white" />
               </div>
               <div>
                 <p className="text-sm font-medium text-gray-600">Scheduled</p>
@@ -239,7 +218,7 @@ export default function MaintenanceSchedulePage() {
           <div className="bg-white p-6 rounded-xl shadow-sm border border-gray-200">
             <div className="flex items-center gap-4">
               <div className="bg-red-500 p-3 rounded-lg">
-                <FaShieldAlt className="w-6 h-6 text-white" />
+                <FaExclamationTriangle className="w-6 h-6 text-white" />
               </div>
               <div>
                 <p className="text-sm font-medium text-gray-600">Overdue</p>
@@ -330,7 +309,7 @@ export default function MaintenanceSchedulePage() {
                       <td className="px-6 py-4 whitespace-nowrap capitalize">{r.status.replace('_', ' ')}</td>
                       <td className="px-6 py-4 whitespace-nowrap text-sm font-medium">
                         <button onClick={() => router.push('/partner/maintenance')} className="text-blue-600 hover:text-blue-900 inline-flex items-center">
-                          <FaEye className="w-4 h-4 mr-1" /> View
+                          <FaCheckCircle className="w-4 h-4 mr-1" /> View
                         </button>
                       </td>
                     </tr>

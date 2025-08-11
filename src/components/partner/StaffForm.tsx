@@ -186,13 +186,13 @@ export default function StaffForm({
     <>
       {/* Backdrop */}
       <div 
-        className="fixed inset-0 z-40 bg-black bg-opacity-50 backdrop-blur-sm"
+        className="modal-overlay-backdrop"
         onClick={handleClose}
       />
       
       {/* Modal */}
-      <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
-        <div className="bg-white rounded-xl shadow-xl max-w-4xl w-full max-h-[90vh] overflow-y-auto">
+      <div className="modal-overlay pointer-events-none">
+        <div className="modal-content w-full max-w-4xl mx-4 pointer-events-auto">
           {/* Header */}
           <div className="sticky top-0 bg-white border-b border-gray-200 px-6 py-4 rounded-t-xl">
             <div className="flex items-center justify-between">
@@ -204,7 +204,7 @@ export default function StaffForm({
               </div>
               <button
                 onClick={handleClose}
-                className="text-gray-400 hover:text-gray-600 transition-colors"
+                className="text-gray-400 hover:text-gray-600"
               >
                 <FaTimes className="text-xl" />
               </button>

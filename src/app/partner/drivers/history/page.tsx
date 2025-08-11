@@ -1,12 +1,11 @@
 'use client';
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import { useAuth } from '../../../../contexts/AuthContext';
 import { useRouter } from 'next/navigation';
 import { 
-  FaHistory, FaSearch, FaFilter, FaEye, FaClock, 
-  FaMoneyBillWave, FaCar, FaStar, FaDownload, FaChartLine,
-  FaCalendarAlt, FaUserCircle, FaFileAlt, FaExclamationTriangle,
-  FaUsers, FaCheckCircle, FaTimes, FaRoute, FaSpinner
+  FaHistory, FaSearch, FaMoneyBillWave, FaStar, FaDownload, FaChartLine,
+  FaCalendarAlt, FaUserCircle, FaExclamationTriangle,
+  FaUsers, FaCheckCircle, FaRoute, FaEye
 } from 'react-icons/fa';
 import { createClient } from '@supabase/supabase-js';
 
@@ -115,13 +114,13 @@ export default function DriverHistoryPage() {
   const [currentPage, setCurrentPage] = useState(1);
   const [itemsPerPage] = useState(10);
 
-  const loadDriverHistory = async () => {
+  const loadDriverHistory = useCallback(async () => {
     try {
       setLoading(true);
 
       if (!user) return;
 
-      const partnerId = user.role?.toLowerCase() === 'partner_staff' ? (user as any).partnerId : user.id;
+      const partnerId = user.role === 'PARTNER_STAFF' ? (user as any).partnerId : user.id;
       if (!partnerId) {
         setDriverHistory([]);
         setFilteredHistory([]);
@@ -231,14 +230,14 @@ export default function DriverHistoryPage() {
       setFilteredHistory(transformedHistory);
       calculateStats(transformedHistory);
     } catch (err) {
-      console.error('Error loading driver history:', err);
+      // Handle error silently
       setDriverHistory([]);
       setFilteredHistory([]);
       calculateStats([]);
     } finally {
       setLoading(false);
     }
-  };
+  }, [user]);
 
   const calculateStats = (history: DriverHistory[]) => {
     const totalRentals = history.length;
@@ -343,7 +342,7 @@ export default function DriverHistoryPage() {
     if (didInitRef.current) return;
     didInitRef.current = true;
     loadDriverHistory();
-  }, [user, authLoading]);
+  }, [user, authLoading, loadDriverHistory, router]);
 
   if (authLoading) {
     return (
@@ -727,9 +726,9 @@ export default function DriverHistoryPage() {
                           <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${PAYMENT_STATUS_COLORS[history.booking.payment_status]}`}>
                             {history.booking.payment_status.charAt(0).toUpperCase() + history.booking.payment_status.slice(1)}
                           </span>
-                          {history.performance.damage_amount > 0 && (
+                          {history.performance?.damage_amount && history.performance.damage_amount > 0 && (
                             <div className="text-xs text-red-500 mt-1">
-                              Damage: {formatCurrency(history.performance.damage_amount)}
+                              Damage Amount: £{history.performance.damage_amount.toFixed(2)}
                             </div>
                           )}
                         </div>

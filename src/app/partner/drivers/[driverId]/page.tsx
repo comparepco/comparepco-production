@@ -83,11 +83,19 @@ export default function DriverOverviewPage() {
   useEffect(() => {
     const resolvePartner = async () => {
       if (!user) return;
-      const role = user.role?.toLowerCase();
-      if (role === 'partner_staff') {
-        const pid = (user as any).partnerId || (user as any).partner_id;
-        if (pid) setResolvedPartnerId(pid);
-      } else if (role === 'partner') {
+      const role = user.role?.toUpperCase();
+      if (role === 'PARTNER_STAFF') {
+        // For partner staff, get their partner_id
+        const { data: staffData } = await supabase
+          .from('partner_staff')
+          .select('partner_id')
+          .eq('user_id', user?.id)
+          .single();
+        
+        if (staffData?.partner_id) {
+          setResolvedPartnerId(staffData.partner_id);
+        }
+      } else if (role === 'PARTNER') {
         try {
           const { data: partnerRow, error } = await supabase
             .from('partners')
@@ -95,9 +103,9 @@ export default function DriverOverviewPage() {
             .eq('user_id', user.id)
             .single();
           if (!error && partnerRow?.id) setResolvedPartnerId(partnerRow.id);
-          else console.error('Unable to resolve partner_id for partner user', error);
+          else {/* Handle error silently */}
         } catch (err) {
-          console.error('Partner resolve exception', err);
+          // Handle error silently
         }
       }
     };
@@ -159,7 +167,7 @@ export default function DriverOverviewPage() {
         }
 
       } catch (err) {
-        console.error('Failed loading driver overview', err);
+        // Handle error silently
       } finally {
         setLoading(false);
       }

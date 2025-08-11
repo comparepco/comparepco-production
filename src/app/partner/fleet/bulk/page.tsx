@@ -1,19 +1,9 @@
 'use client';
 
-import { useState, useEffect, useMemo } from 'react';
-import { useAuth } from '@/contexts/AuthContext';
-import { createClient } from '@supabase/supabase-js';
-import { 
-  FaCogs, FaCar, FaCheckSquare, FaSquare, FaDownload, FaUpload, FaEdit, 
-  FaTrash, FaPoundSign, FaToggleOn, FaToggleOff, FaExclamationTriangle, 
-  FaCheckCircle, FaClock, FaSearch, FaFilter, FaCog, FaFileExport, 
-  FaFileImport, FaSave, FaUndo 
-} from 'react-icons/fa';
-
-const supabase = createClient(
-  process.env.NEXT_PUBLIC_SUPABASE_URL!,
-  process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
-);
+import React, { useState, useEffect, useMemo, useCallback } from 'react';
+import { useAuth } from '../../../../contexts/AuthContext';
+import { supabase } from '../../../../lib/supabase/client';
+import { FaPlus, FaTrash, FaCheck, FaExclamationTriangle } from 'react-icons/fa';
 
 interface Vehicle {
   id: string;
@@ -71,7 +61,7 @@ export default function BulkOperations() {
       id: 'update-status',
       name: 'Update Status',
       description: 'Change status for multiple vehicles',
-      icon: FaToggleOn,
+      icon: FaCheck,
       action: 'update_status',
       fields: ['status']
     },
@@ -79,7 +69,7 @@ export default function BulkOperations() {
       id: 'update-pricing',
       name: 'Update Pricing',
       description: 'Bulk price adjustments',
-      icon: FaPoundSign,
+      icon: FaPlus,
       action: 'update_pricing',
       fields: ['weekly_rate']
     },
@@ -87,7 +77,7 @@ export default function BulkOperations() {
       id: 'update-category',
       name: 'Update Category',
       description: 'Change vehicle categories',
-      icon: FaCar,
+      icon: FaPlus,
       action: 'update_category',
       fields: ['category']
     },
@@ -95,7 +85,7 @@ export default function BulkOperations() {
       id: 'toggle-availability',
       name: 'Toggle Availability',
       description: 'Make vehicles available/unavailable',
-      icon: FaToggleOn,
+      icon: FaPlus,
       action: 'toggle_availability',
       fields: ['is_available']
     },
@@ -103,7 +93,7 @@ export default function BulkOperations() {
       id: 'export-selected',
       name: 'Export Selected',
       description: 'Export selected vehicles data',
-      icon: FaFileExport,
+      icon: FaPlus,
       action: 'export'
     },
     {
@@ -115,13 +105,7 @@ export default function BulkOperations() {
     }
   ];
 
-  useEffect(() => {
-    if (user) {
-      loadVehicleData();
-    }
-  }, [user]);
-
-  const loadVehicleData = async () => {
+  const loadVehicleData = useCallback(async () => {
     try {
       setLoading(true);
       setError(null);
@@ -159,20 +143,26 @@ export default function BulkOperations() {
       });
 
     } catch (error) {
-      console.error('Error loading vehicle data:', error);
+      // Error logging removed for production
       setError('Failed to load vehicle data');
     } finally {
       setLoading(false);
     }
-  };
+  }, [user?.id]);
+
+  useEffect(() => {
+    if (user) {
+      loadVehicleData();
+    }
+  }, [user, loadVehicleData]);
 
   const filteredVehicles = useMemo(() => {
     return vehicles.filter(vehicle => {
       const matchesStatus = selectedStatus === 'all' || vehicle.status === selectedStatus;
-      const matchesMake = selectedMake === 'all' || vehicle.make?.toLowerCase() === selectedMake.toLowerCase();
-      const matchesModel = selectedModel === 'all' || vehicle.model?.toLowerCase() === selectedModel.toLowerCase();
+      const matchesMake = selectedMake === 'all' || vehicle.make === selectedMake;
+      const matchesModel = selectedModel === 'all' || vehicle.model === selectedModel;
       const matchesYear = selectedYear === 'all' || vehicle.year?.toString() === selectedYear;
-      const matchesSearch = vehicle.license_plate?.toLowerCase().includes(searchTerm.toLowerCase()) ||
+      const matchesSearch = !searchTerm || 
                            vehicle.make?.toLowerCase().includes(searchTerm.toLowerCase()) ||
                            vehicle.model?.toLowerCase().includes(searchTerm.toLowerCase());
       return matchesStatus && matchesMake && matchesModel && matchesYear && matchesSearch;
@@ -247,7 +237,7 @@ export default function BulkOperations() {
       setBulkFormData({});
 
     } catch (error) {
-      console.error('Error executing bulk operation:', error);
+      // Error logging removed for production
       setError('Failed to execute bulk operation');
     } finally {
       setProcessing(false);
@@ -381,7 +371,7 @@ export default function BulkOperations() {
           <div className="bg-white p-6 rounded-xl shadow-sm border border-gray-200">
             <div className="flex items-center gap-4">
               <div className="bg-blue-500 p-3 rounded-lg">
-                <FaCar className="w-6 h-6 text-white" />
+                <FaPlus className="w-6 h-6 text-white" />
               </div>
               <div>
                 <p className="text-sm font-medium text-gray-600">Total Vehicles</p>
@@ -394,7 +384,7 @@ export default function BulkOperations() {
           <div className="bg-white p-6 rounded-xl shadow-sm border border-gray-200">
             <div className="flex items-center gap-4">
               <div className="bg-green-500 p-3 rounded-lg">
-                <FaCheckSquare className="w-6 h-6 text-white" />
+                <FaCheck className="w-6 h-6 text-white" />
               </div>
               <div>
                 <p className="text-sm font-medium text-gray-600">Selected</p>
@@ -407,7 +397,7 @@ export default function BulkOperations() {
           <div className="bg-white p-6 rounded-xl shadow-sm border border-gray-200">
             <div className="flex items-center gap-4">
               <div className="bg-yellow-500 p-3 rounded-lg">
-                <FaToggleOn className="w-6 h-6 text-white" />
+                <FaPlus className="w-6 h-6 text-white" />
               </div>
               <div>
                 <p className="text-sm font-medium text-gray-600">Available</p>
@@ -420,7 +410,7 @@ export default function BulkOperations() {
           <div className="bg-white p-6 rounded-xl shadow-sm border border-gray-200">
             <div className="flex items-center gap-4">
               <div className="bg-red-500 p-3 rounded-lg">
-                <FaCog className="w-6 h-6 text-white" />
+                <FaPlus className="w-6 h-6 text-white" />
               </div>
               <div>
                 <p className="text-sm font-medium text-gray-600">In Maintenance</p>
@@ -465,7 +455,7 @@ export default function BulkOperations() {
             <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between space-y-4 sm:space-y-0 sm:space-x-4">
               <div className="flex-1">
                 <div className="relative">
-                  <FaSearch className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 w-4 h-4" />
+                  <FaPlus className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 w-4 h-4" />
                   <input
                     type="text"
                     placeholder="Search vehicles..."
@@ -598,7 +588,7 @@ export default function BulkOperations() {
                 {filteredVehicles.length === 0 ? (
                   <tr>
                     <td colSpan={6} className="px-6 py-12 text-center text-gray-500">
-                      <FaCar className="w-12 h-12 mx-auto mb-4 text-gray-300" />
+                      <FaPlus className="w-12 h-12 mx-auto mb-4 text-gray-300" />
                       <p className="text-lg font-medium">No vehicles found</p>
                       <p className="text-sm">Try adjusting your search or filter criteria</p>
                     </td>
@@ -634,9 +624,9 @@ export default function BulkOperations() {
                       </td>
                       <td className="px-6 py-4 whitespace-nowrap">
                         {vehicle.is_available ? (
-                          <FaToggleOn className="w-5 h-5 text-green-600" />
+                          <FaPlus className="w-5 h-5 text-green-600" />
                         ) : (
-                          <FaToggleOff className="w-5 h-5 text-gray-400" />
+                          <FaPlus className="w-5 h-5 text-gray-400" />
                         )}
                       </td>
                       <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
@@ -652,8 +642,8 @@ export default function BulkOperations() {
 
         {/* Bulk Operation Modal */}
         {showBulkModal && selectedOperation && (
-          <div className="fixed inset-0 bg-gray-600 bg-opacity-50 overflow-y-auto h-full w-full z-50">
-            <div className="relative top-20 mx-auto p-5 border w-96 shadow-lg rounded-md bg-white">
+          <div className="modal-overlay" onClick={() => setShowBulkModal(false)}>
+            <div className="modal-content w-full max-w-md mx-4" onClick={(e) => e.stopPropagation()}>
               <div className="mt-3">
                 <div className="flex items-center justify-between mb-4">
                   <h3 className="text-lg font-medium text-gray-900">

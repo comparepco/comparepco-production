@@ -614,9 +614,9 @@ export default function PartnerPricingPage() {
 
         {/* Template Modal */}
         {showTemplateModal && (
-          <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
-            <div className="bg-white rounded-xl p-6 w-full max-w-2xl mx-auto max-h-[90vh] overflow-y-auto">
-              <div className="flex items-center justify-between mb-4">
+          <div className="modal-overlay" onClick={() => setShowTemplateModal(false)}>
+            <div className="modal-content w-full max-w-2xl mx-4" onClick={(e) => e.stopPropagation()}>
+              <div className="flex items-center justify-between mb-4 p-6 border-b border-gray-200">
                 <h3 className="text-lg font-semibold">
                   {editingTemplate ? 'Edit Pricing Template' : 'Create Pricing Template'}
                 </h3>
@@ -792,9 +792,9 @@ export default function PartnerPricingPage() {
 
         {/* Bulk Edit Modal */}
         {showBulkEditModal && (
-          <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
-            <div className="bg-white rounded-xl p-6 w-full max-w-2xl mx-auto max-h-[90vh] overflow-y-auto">
-              <div className="flex items-center justify-between mb-4">
+          <div className="modal-overlay" onClick={() => setShowBulkEditModal(false)}>
+            <div className="modal-content w-full max-w-2xl mx-4" onClick={(e) => e.stopPropagation()}>
+              <div className="flex items-center justify-between mb-4 p-6 border-b border-gray-200">
                 <h3 className="text-lg font-semibold">Bulk Edit Pricing</h3>
                 <button
                   onClick={() => setShowBulkEditModal(false)}

@@ -66,7 +66,7 @@ export async function POST(request: NextRequest) {
       email_confirm: true,
       user_metadata: {
         name,
-        role: 'partner',
+        role: 'PARTNER',
         accountType: 'partner'
       },
       app_metadata: {

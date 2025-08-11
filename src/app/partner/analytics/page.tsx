@@ -152,7 +152,7 @@ export default function AnalyticsPage() {
       if (!user) return;
 
       // Derive partnerId
-      const partnerId = user.role?.toLowerCase() === 'partner_staff' ? (user as any).partnerId : user.id;
+      const partnerId = user.role === 'PARTNER_STAFF' ? (user as any).partnerId : user.id;
       if (!partnerId) {
         console.error('No partner ID found for analytics');
         return;

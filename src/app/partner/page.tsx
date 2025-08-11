@@ -3005,15 +3005,15 @@ export default function PartnerDashboard() {
 
             {/* Widget Expansion Modal */}
             {expandedWidget && (
-              <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
-                <div className="bg-white rounded-xl shadow-2xl max-w-7xl w-full max-h-[90vh] overflow-hidden">
+              <div className="modal-overlay" onClick={() => setExpandedWidget(null)}>
+                <div className="modal-content w-full max-w-7xl mx-4" onClick={(e) => e.stopPropagation()}>
                   <div className="flex items-center justify-between p-6 border-b border-gray-200">
                     <h2 className="text-2xl font-bold text-gray-900">
                       {staticWidgets.find(w => w.id === expandedWidget)?.title}
                     </h2>
                     <button
                       onClick={() => setExpandedWidget(null)}
-                      className="p-2 text-gray-400 hover:text-gray-600 rounded-lg hover:bg-gray-100 transition-colors"
+                      className="p-2 text-gray-400 hover:text-gray-600 rounded-lg hover:bg-gray-100"
                     >
                       <FaTimes className="w-6 h-6" />
                     </button>

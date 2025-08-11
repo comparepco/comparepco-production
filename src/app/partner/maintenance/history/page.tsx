@@ -1,8 +1,13 @@
 'use client';
-import React, { useEffect, useState } from 'react';
+import * as React from 'react';
+import { useEffect, useState, useCallback } from 'react';
 import { useAuth } from '@/contexts/AuthContext';
 import { useRouter } from 'next/navigation';
-import { FaHistory, FaSearch, FaFilter, FaDownload, FaCar, FaTools } from 'react-icons/fa';
+import {
+  FaHistory,
+  FaSearch,
+  FaDownload
+} from 'react-icons/fa';
 import { createClient } from '@supabase/supabase-js';
 
 const supabase = createClient(
@@ -55,7 +60,7 @@ export default function MaintenanceHistoryPage() {
     return null;
   };
 
-  const loadRecords = async () => {
+  const loadRecords = useCallback(async () => {
     try {
       setLoading(true);
       const partnerId = await getPartnerId();
@@ -71,18 +76,18 @@ export default function MaintenanceHistoryPage() {
       setRecords((data || []) as any);
       setFiltered((data || []) as any);
     } catch (e) {
-      console.error('loadRecords error', e);
+      // Handle error silently or log to monitoring service
       setRecords([]); setFiltered([]);
     } finally {
       setLoading(false);
     }
-  };
+  }, [user]);
 
   useEffect(() => {
     if (authLoading) return;
     if (!user) { router.replace('/auth/login'); return; }
     if (didInitRef.current) return; didInitRef.current = true; loadRecords();
-  }, [user, authLoading]);
+  }, [user, authLoading, router, loadRecords]);
 
   useEffect(() => {
     let list = [...records];

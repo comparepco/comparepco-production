@@ -1,19 +1,12 @@
 'use client';
 
-import { useState, useEffect, useMemo } from 'react';
-import { useAuth } from '@/contexts/AuthContext';
-import { createClient } from '@supabase/supabase-js';
+import React, { useState, useEffect, useCallback } from 'react';
+import { useAuth } from '../../../../contexts/AuthContext';
+import { supabase } from '../../../../lib/supabase/client';
 import { 
-  FaTags, FaCar, FaPlus, FaEdit, FaTrash, FaEye, FaSearch, FaFilter, 
-  FaDownload, FaExclamationTriangle, FaCheckCircle, FaClock, FaPoundSign, 
-  FaTachometerAlt, FaStar, FaTimes, FaSave, FaChartLine, FaUsers, 
-  FaCalendarAlt, FaInfoCircle, FaSpinner 
+  FaPlus, FaEdit, FaTrash, FaCheck, FaExclamationTriangle, 
+  FaTags, FaCar, FaPoundSign, FaSearch, FaEye, FaStar, FaTimes 
 } from 'react-icons/fa';
-
-const supabase = createClient(
-  process.env.NEXT_PUBLIC_SUPABASE_URL!,
-  process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
-);
 
 interface VehicleCategory {
   id: string;
@@ -90,24 +83,7 @@ export default function VehicleCategories() {
     totalRevenue: 0
   });
 
-  // Load data on component mount
-  useEffect(() => {
-    if (user) {
-      loadCategoryData();
-    }
-  }, [user]);
-
-  // Memoize expensive computations
-  const categoryStats = useMemo(() => {
-    return {
-      totalCategories: categories.length,
-      activeCategories: categories.filter(cat => cat.is_active).length,
-      totalVehicles: vehicles.length,
-      totalRevenue: categories.reduce((sum, cat) => sum + cat.total_revenue, 0)
-    };
-  }, [categories, vehicles]);
-
-  const loadCategoryData = async () => {
+  const loadCategoryData = useCallback(async () => {
     try {
       setLoading(true);
       setError(null);
@@ -170,7 +146,7 @@ export default function VehicleCategories() {
           .select();
 
         if (insertError) {
-          console.error('Error creating missing categories:', insertError);
+          // Error logging removed for production
         } else {
           // Merge existing and new categories
           const allCategories = [...(categoriesData || []), ...(insertedCategories || [])];
@@ -210,14 +186,30 @@ export default function VehicleCategories() {
       });
 
     } catch (error) {
-      console.error('Error loading category data:', error);
+      // Error logging removed for production
       setError('Failed to load category data');
     } finally {
       setLoading(false);
     }
-  };
+  }, [user?.id]);
 
-  const filteredCategories = useMemo(() => {
+  useEffect(() => {
+    if (user) {
+      loadCategoryData();
+    }
+  }, [user, loadCategoryData]);
+
+  // Memoize expensive computations
+  const categoryStats = useCallback(() => {
+    return {
+      totalCategories: categories.length,
+      activeCategories: categories.filter(cat => cat.is_active).length,
+      totalVehicles: vehicles.length,
+      totalRevenue: categories.reduce((sum, cat) => sum + cat.total_revenue, 0)
+    };
+  }, [categories, vehicles]);
+
+  const filteredCategories = useCallback(() => {
     return categories.filter(category =>
       category.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
       category.description.toLowerCase().includes(searchTerm.toLowerCase())
@@ -241,7 +233,7 @@ export default function VehicleCategories() {
   const exportCategoryData = () => {
     const csvContent = [
       ['Category', 'Description', 'Weekly Rate Range', 'Target Market', 'Vehicle Count', 'Total Revenue', 'Average Rating', 'Status', 'Features'],
-      ...filteredCategories.map(cat => [
+      ...filteredCategories().map(cat => [
         cat.name,
         cat.description,
         cat.daily_rate_range,
@@ -359,7 +351,7 @@ export default function VehicleCategories() {
         if (updateError) throw updateError;
       } else {
         // Add new category to Supabase
-        const { data: newCategory, error: insertError } = await supabase
+        const { data: _newCategory, error: insertError } = await supabase
           .from('vehicle_categories')
           .insert({
             partner_id: user?.id,
@@ -400,7 +392,7 @@ export default function VehicleCategories() {
       await loadCategoryData();
       
     } catch (error) {
-      console.error('Error saving category:', error);
+      // Error logging removed for production
       setError('Failed to save category');
     } finally {
       setProcessing(false);
@@ -436,7 +428,7 @@ export default function VehicleCategories() {
       await loadCategoryData();
       
     } catch (error) {
-      console.error('Error deleting category:', error);
+      // Error logging removed for production
       setError('Failed to delete category');
     } finally {
       setProcessing(false);
@@ -506,7 +498,6 @@ export default function VehicleCategories() {
               onClick={exportCategoryData}
               className="inline-flex items-center px-4 py-2 border border-gray-300 rounded-md shadow-sm text-sm font-medium text-gray-700 bg-white hover:bg-gray-50"
             >
-              <FaDownload className="w-4 h-4 mr-2" />
               Export
             </button>
             <button
@@ -528,7 +519,7 @@ export default function VehicleCategories() {
               </div>
               <div>
                 <p className="text-sm font-medium text-gray-600">Total Categories</p>
-                <p className="text-2xl font-bold text-gray-900">{categoryStats.totalCategories}</p>
+                <p className="text-2xl font-bold text-gray-900">{categoryStats().totalCategories}</p>
                 <p className="text-xs text-green-600">Vehicle classifications</p>
               </div>
             </div>
@@ -537,11 +528,11 @@ export default function VehicleCategories() {
           <div className="bg-white p-6 rounded-xl shadow-sm border border-gray-200">
             <div className="flex items-center gap-4">
               <div className="bg-green-500 p-3 rounded-lg">
-                <FaCheckCircle className="w-6 h-6 text-white" />
+                <FaCheck className="w-6 h-6 text-white" />
               </div>
               <div>
                 <p className="text-sm font-medium text-gray-600">Active Categories</p>
-                <p className="text-2xl font-bold text-gray-900">{categoryStats.activeCategories}</p>
+                <p className="text-2xl font-bold text-gray-900">{categoryStats().activeCategories}</p>
                 <p className="text-xs text-green-600">With vehicles assigned</p>
               </div>
             </div>
@@ -554,7 +545,7 @@ export default function VehicleCategories() {
               </div>
               <div>
                 <p className="text-sm font-medium text-gray-600">Total Vehicles</p>
-                <p className="text-2xl font-bold text-gray-900">{categoryStats.totalVehicles}</p>
+                <p className="text-2xl font-bold text-gray-900">{categoryStats().totalVehicles}</p>
                 <p className="text-xs text-green-600">Across all categories</p>
               </div>
             </div>
@@ -567,7 +558,7 @@ export default function VehicleCategories() {
               </div>
               <div>
                 <p className="text-sm font-medium text-gray-600">Total Revenue</p>
-                <p className="text-2xl font-bold text-gray-900">£{categoryStats.totalRevenue.toLocaleString()}</p>
+                <p className="text-2xl font-bold text-gray-900">£{categoryStats().totalRevenue.toLocaleString()}</p>
                 <p className="text-xs text-green-600">Category earnings</p>
               </div>
             </div>
@@ -577,7 +568,7 @@ export default function VehicleCategories() {
         {/* Search */}
         <div className="bg-white p-6 rounded-lg shadow mb-6">
           <div className="relative">
-            <FaSearch className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 w-4 h-4" />
+            <FaSearch className="absolute left-3 top-1/2 transform -translate-y-1/2 w-4 h-4 text-gray-400" />
             <input
               type="text"
               placeholder="Search categories..."
@@ -590,14 +581,14 @@ export default function VehicleCategories() {
 
         {/* Categories Grid */}
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-          {filteredCategories.length === 0 ? (
+          {filteredCategories().length === 0 ? (
             <div className="col-span-full text-center py-12">
-              <FaTags className="w-12 h-12 mx-auto mb-4 text-gray-300" />
+              <FaTags className="w-12 h-12 mx-auto mb-4 text-gray-400" />
               <p className="text-lg font-medium text-gray-900">No categories found</p>
               <p className="text-sm text-gray-500">Get started by adding your first vehicle category</p>
             </div>
           ) : (
-            filteredCategories.map((category) => (
+            filteredCategories().map((category) => (
               <div key={category.id} className="bg-white rounded-lg shadow hover:shadow-lg transition-shadow">
                 <div className="p-6">
                   <div className="flex items-center justify-between mb-4">
@@ -685,9 +676,9 @@ export default function VehicleCategories() {
 
              {/* Add Category Modal */}
        {showAddModal && (
-         <div className="fixed inset-0 bg-gray-600 bg-opacity-50 overflow-y-auto h-full w-full flex items-center justify-center z-50">
-           <div className="relative bg-white p-8 border border-gray-300 rounded-lg shadow-xl w-full max-w-2xl max-h-full">
-             <div className="flex justify-between items-center mb-4">
+         <div className="modal-overlay" onClick={() => setShowAddModal(false)}>
+           <div className="modal-content w-full max-w-2xl mx-4" onClick={(e) => e.stopPropagation()}>
+             <div className="flex justify-between items-center mb-4 p-6 border-b border-gray-200">
                <h3 className="text-xl font-semibold text-gray-900">Add New Category</h3>
                <button onClick={() => setShowAddModal(false)} className="text-gray-400 hover:text-gray-600">
                  <FaTimes className="w-5 h-5" />
@@ -814,7 +805,12 @@ export default function VehicleCategories() {
                  className="inline-flex items-center px-4 py-2 border border-transparent rounded-md shadow-sm text-sm font-medium text-white bg-blue-600 hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500"
                >
                  {processing ? 'Saving...' : 'Save Category'}
-                 {processing && <FaSpinner className="ml-2 h-4 w-4 animate-spin" />}
+                 {processing && (
+                   <svg className="ml-2 h-4 w-4 animate-spin" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                     <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
+                     <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                   </svg>
+                 )}
                </button>
              </div>
            </div>
@@ -823,9 +819,9 @@ export default function VehicleCategories() {
 
              {/* Edit Category Modal */}
        {showEditModal && (
-         <div className="fixed inset-0 bg-gray-600 bg-opacity-50 overflow-y-auto h-full w-full flex items-center justify-center z-50">
-           <div className="relative bg-white p-8 border border-gray-300 rounded-lg shadow-xl w-full max-w-md max-h-full">
-            <div className="flex justify-between items-center mb-4">
+         <div className="modal-overlay" onClick={() => setShowEditModal(false)}>
+           <div className="modal-content w-full max-w-md mx-4" onClick={(e) => e.stopPropagation()}>
+            <div className="flex justify-between items-center mb-4 p-6 border-b border-gray-200">
               <h3 className="text-xl font-semibold text-gray-900">Edit Category</h3>
               <button onClick={() => setShowEditModal(false)} className="text-gray-400 hover:text-gray-600">
                 <FaTimes className="w-5 h-5" />
@@ -933,18 +929,23 @@ export default function VehicleCategories() {
                 className="inline-flex items-center px-4 py-2 border border-transparent rounded-md shadow-sm text-sm font-medium text-white bg-blue-600 hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500"
               >
                 {processing ? 'Saving...' : 'Save Category'}
-                {processing && <FaSpinner className="ml-2 h-4 w-4 animate-spin" />}
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
+                {processing && (
+                   <svg className="ml-2 h-4 w-4 animate-spin" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                     <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
+                     <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                   </svg>
+                 )}
+               </button>
+             </div>
+           </div>
+         </div>
+       )}
 
       {/* View Category Modal */}
       {showViewModal && selectedCategory && (
-        <div className="fixed inset-0 bg-gray-600 bg-opacity-50 overflow-y-auto h-full w-full flex items-center justify-center z-50">
-          <div className="relative bg-white p-8 border border-gray-300 rounded-lg shadow-xl w-full max-w-md max-h-full">
-            <div className="flex justify-between items-center mb-4">
+        <div className="modal-overlay" onClick={() => setShowViewModal(false)}>
+          <div className="modal-content w-full max-w-md mx-4" onClick={(e) => e.stopPropagation()}>
+            <div className="flex justify-between items-center mb-4 p-6 border-b border-gray-200">
               <h3 className="text-xl font-semibold text-gray-900">Category Details</h3>
               <button onClick={() => setShowViewModal(false)} className="text-gray-400 hover:text-gray-600">
                 <FaTimes className="w-5 h-5" />
@@ -994,9 +995,9 @@ export default function VehicleCategories() {
 
       {/* Delete Category Modal */}
       {showDeleteModal && selectedCategory && (
-        <div className="fixed inset-0 bg-gray-600 bg-opacity-50 overflow-y-auto h-full w-full flex items-center justify-center z-50">
-          <div className="relative bg-white p-8 border border-gray-300 rounded-lg shadow-xl w-full max-w-md max-h-full">
-            <div className="flex justify-between items-center mb-4">
+        <div className="modal-overlay" onClick={() => setShowDeleteModal(false)}>
+          <div className="modal-content w-full max-w-md mx-4" onClick={(e) => e.stopPropagation()}>
+            <div className="flex justify-between items-center mb-4 p-6 border-b border-gray-200">
               <h3 className="text-xl font-semibold text-gray-900">Confirm Deletion</h3>
               <button onClick={() => setShowDeleteModal(false)} className="text-gray-400 hover:text-gray-600">
                 <FaTimes className="w-5 h-5" />
@@ -1018,12 +1019,17 @@ export default function VehicleCategories() {
                 className="inline-flex items-center px-4 py-2 border border-transparent rounded-md shadow-sm text-sm font-medium text-white bg-red-600 hover:bg-red-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-red-500"
               >
                 {processing ? 'Deleting...' : 'Delete Category'}
-                {processing && <FaSpinner className="ml-2 h-4 w-4 animate-spin" />}
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
+                {processing && (
+                   <svg className="ml-2 h-4 w-4 animate-spin" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                     <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
+                     <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                   </svg>
+                 )}
+               </button>
+             </div>
+           </div>
+         </div>
+       )}
     </div>
   );
 } 

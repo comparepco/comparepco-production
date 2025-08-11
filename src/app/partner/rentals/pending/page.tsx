@@ -1,25 +1,12 @@
 'use client';
-import React, { useState, useEffect, useMemo } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import { useAuth } from '../../../../contexts/AuthContext';
 import { useRouter } from 'next/navigation';
+import { supabase } from '../../../../lib/supabase/client';
 import { 
-  FaCalendarAlt, FaSearch, FaFilter, FaEye, FaClock, 
-  FaMoneyBillWave, FaCar, FaMapMarkerAlt, FaFileAlt,
-  FaCheckCircle, FaTimes, FaExclamationTriangle, FaStar,
-  FaDownload, FaPhone, FaEnvelope, FaComments, FaLifeRing,
-  FaPlus, FaUpload, FaSignature, FaUndo, FaHistory, FaBolt,
-  FaTools, FaShieldAlt, FaUserCircle, FaChevronRight, FaBuilding,
-  FaUser, FaEdit, FaTrash, FaBell, FaExchangeAlt, FaPaperPlane,
-  FaCheck, FaInfoCircle, FaTh, FaList, FaHourglassHalf, FaCalendarCheck,
-  FaUserCheck, FaFileContract, FaHandshake, FaSpinner
+  FaSearch, FaStar, FaCalendarAlt, FaMoneyBillWave, FaClock,
+  FaUserTie, FaCreditCard, FaFileAlt, FaBan
 } from 'react-icons/fa';
-import { createClient } from '@supabase/supabase-js';
-
-// Initialize Supabase client
-const supabase = createClient(
-  process.env.NEXT_PUBLIC_SUPABASE_URL!,
-  process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
-);
 
 // Type Definitions
 interface PendingBooking {
@@ -77,19 +64,8 @@ interface PendingBooking {
   
   // Urgency tracking
   is_urgent: boolean;
-  hours_until_deadline?: number;
+  hours_until_deadline?: number | null;
   days_until_start?: number;
-}
-
-interface PendingBookingStats {
-  total_pending: number;
-  urgent_bookings: number;
-  total_revenue: number;
-  average_rating: number;
-  vehicles_requested: number;
-  drivers_waiting: number;
-  documents_pending: number;
-  expiring_soon: number;
 }
 
 const STATUS_COLORS = {
@@ -113,7 +89,18 @@ export default function PendingBookingsPage() {
   // State management
   const [pendingBookings, setPendingBookings] = useState<PendingBooking[]>([]);
   const [filteredBookings, setFilteredBookings] = useState<PendingBooking[]>([]);
-  const [stats, setStats] = useState<PendingBookingStats>({
+  const [loading, setLoading] = useState(true);
+  const [searchTerm, setSearchTerm] = useState('');
+  const [statusFilter, setStatusFilter] = useState('');
+  const [paymentFilter, setPaymentFilter] = useState('all');
+  const [urgencyFilter, setUrgencyFilter] = useState('all');
+  const [vehicleFilter, setVehicleFilter] = useState('');
+  const [sortBy, setSortBy] = useState('created_at');
+  const [sortOrder, setSortOrder] = useState<'asc' | 'desc'>('desc');
+  const [currentPage, setCurrentPage] = useState(1);
+  const [itemsPerPage] = useState(10);
+  const [_error, setError] = useState<string | null>(null);
+  const [stats, setStats] = useState({
     total_pending: 0,
     urgent_bookings: 0,
     total_revenue: 0,
@@ -123,31 +110,37 @@ export default function PendingBookingsPage() {
     documents_pending: 0,
     expiring_soon: 0
   });
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState<string | null>(null);
-  
-  // Filter states
-  const [searchTerm, setSearchTerm] = useState('');
-  const [statusFilter, setStatusFilter] = useState('all');
-  const [paymentFilter, setPaymentFilter] = useState('all');
-  const [urgencyFilter, setUrgencyFilter] = useState('all');
-  const [vehicleFilter, setVehicleFilter] = useState('all');
-  const [sortBy, setSortBy] = useState('created_at');
-  const [sortOrder, setSortOrder] = useState<'asc' | 'desc'>('desc');
-  
-  // Pagination
-  const [currentPage, setCurrentPage] = useState(1);
-  const [itemsPerPage] = useState(10);
-  
-  // Modal states
-  const [selectedBooking, setSelectedBooking] = useState<PendingBooking | null>(null);
-  const [showBookingModal, setShowBookingModal] = useState(false);
-  const [showApprovalModal, setShowApprovalModal] = useState(false);
-  const [showRejectionModal, setShowRejectionModal] = useState(false);
-  const [showContactModal, setShowContactModal] = useState(false);
+  const [_selectedBooking, setSelectedBooking] = useState<PendingBooking | null>(null);
+  const [_showBookingModal, setShowBookingModal] = useState(false);
+  const [_showApprovalModal, setShowApprovalModal] = useState(false);
+  const [_showRejectionModal, setShowRejectionModal] = useState(false);
+  const [_showContactModal, setShowContactModal] = useState(false);
+
+  // Calculate statistics
+  const calculateStats = useCallback((bookings: PendingBooking[]) => {
+    const totalPending = bookings.length;
+    const urgentBookings = bookings.filter(b => b.is_urgent).length;
+    const totalRevenue = bookings.reduce((sum, booking) => sum + booking.total_amount, 0);
+    const averageRating = bookings.reduce((sum, booking) => sum + booking.driver.rating, 0) / totalPending || 0;
+    const vehiclesRequested = new Set(bookings.map(b => b.vehicle_id)).size;
+    const driversWaiting = new Set(bookings.map(b => b.driver_id)).size;
+    const documentsPending = bookings.filter(b => !b.driver.documents_uploaded).length;
+    const expiringSoon = bookings.filter(b => (b.hours_until_deadline ?? 0) <= 6).length;
+
+    setStats({
+      total_pending: totalPending,
+      urgent_bookings: urgentBookings,
+      total_revenue: totalRevenue,
+      average_rating: averageRating,
+      vehicles_requested: vehiclesRequested,
+      drivers_waiting: driversWaiting,
+      documents_pending: documentsPending,
+      expiring_soon: expiringSoon
+    });
+  }, []);
 
   // Load pending bookings
-  const loadPendingBookings = async () => {
+  const loadPendingBookings = useCallback(async () => {
     try {
       setLoading(true);
       setError(null);
@@ -155,9 +148,9 @@ export default function PendingBookingsPage() {
       if (!user) return;
 
       // Derive partnerId similar to other pages
-      const partnerId = user.role?.toLowerCase() === 'partner_staff' ? (user as any).partnerId : user.id;
+      const partnerId = user.role === 'PARTNER_STAFF' ? (user as any).partnerId : user.id;
       if (!partnerId) {
-        console.error('No partner ID found for pending bookings');
+        // No partner ID found - handle silently
         setPendingBookings([]);
         setFilteredBookings([]);
         calculateStats([]);
@@ -173,12 +166,7 @@ export default function PendingBookingsPage() {
         .order('created_at', { ascending: false });
 
       if (bookingsError) {
-        console.error('Supabase error (bookings):', {
-          message: (bookingsError as any).message,
-          details: (bookingsError as any).details,
-          hint: (bookingsError as any).hint,
-          code: (bookingsError as any).code,
-        });
+        // Supabase error - handle silently
         setPendingBookings([]);
         setFilteredBookings([]);
         calculateStats([]);
@@ -293,7 +281,7 @@ export default function PendingBookingsPage() {
       setFilteredBookings(transformedBookings);
       calculateStats(transformedBookings);
     } catch (err) {
-      console.error('Error loading pending bookings:', err);
+      // Error loading pending bookings - handle silently
       setPendingBookings([]);
       setFilteredBookings([]);
       calculateStats([]);
@@ -301,30 +289,7 @@ export default function PendingBookingsPage() {
     } finally {
       setLoading(false);
     }
-  };
-
-  // Calculate statistics
-  const calculateStats = (bookings: PendingBooking[]) => {
-    const totalPending = bookings.length;
-    const urgentBookings = bookings.filter(b => b.is_urgent).length;
-    const totalRevenue = bookings.reduce((sum, booking) => sum + booking.total_amount, 0);
-    const averageRating = bookings.reduce((sum, booking) => sum + booking.driver.rating, 0) / totalPending || 0;
-    const vehiclesRequested = new Set(bookings.map(b => b.vehicle_id)).size;
-    const driversWaiting = new Set(bookings.map(b => b.driver_id)).size;
-    const documentsPending = bookings.filter(b => !b.driver.documents_uploaded).length;
-    const expiringSoon = bookings.filter(b => b.hours_until_deadline !== null && b.hours_until_deadline <= 6).length;
-
-    setStats({
-      total_pending: totalPending,
-      urgent_bookings: urgentBookings,
-      total_revenue: totalRevenue,
-      average_rating: averageRating,
-      vehicles_requested: vehiclesRequested,
-      drivers_waiting: driversWaiting,
-      documents_pending: documentsPending,
-      expiring_soon: expiringSoon
-    });
-  };
+  }, [user, calculateStats]);
 
   // Filter and sort bookings
   useEffect(() => {
@@ -341,7 +306,7 @@ export default function PendingBookingsPage() {
     }
 
     // Status filter
-    if (statusFilter !== 'all') {
+    if (statusFilter) {
       filtered = filtered.filter(booking => booking.status === statusFilter);
     }
 
@@ -355,12 +320,12 @@ export default function PendingBookingsPage() {
       if (urgencyFilter === 'urgent') {
         filtered = filtered.filter(booking => booking.is_urgent);
       } else if (urgencyFilter === 'expiring') {
-        filtered = filtered.filter(booking => booking.hours_until_deadline !== null && booking.hours_until_deadline <= 6);
+        filtered = filtered.filter(booking => (booking.hours_until_deadline ?? null) !== null && (booking.hours_until_deadline ?? 0) <= 6);
       }
     }
 
     // Vehicle filter
-    if (vehicleFilter !== 'all') {
+    if (vehicleFilter) {
       filtered = filtered.filter(booking => booking.vehicle.category === vehicleFilter);
     }
 
@@ -403,7 +368,7 @@ export default function PendingBookingsPage() {
 
     setFilteredBookings(filtered);
     setCurrentPage(1);
-  }, [pendingBookings, searchTerm, statusFilter, paymentFilter, urgencyFilter, vehicleFilter, sortBy, sortOrder]);
+  }, [pendingBookings, searchTerm, statusFilter, vehicleFilter, sortBy, sortOrder]);
 
   // Wait for auth state
   useEffect(() => {
@@ -413,7 +378,7 @@ export default function PendingBookingsPage() {
       return;
     }
     loadPendingBookings();
-  }, [user, authLoading]);
+  }, [user, authLoading, loadPendingBookings, router]);
 
   if (authLoading) {
     return (
@@ -454,8 +419,8 @@ export default function PendingBookingsPage() {
     return `${weeks} weeks`;
   };
 
-  const formatTimeRemaining = (hours: number | null) => {
-    if (hours === null) return 'No deadline';
+  const formatTimeRemaining = (hours: number | null | undefined) => {
+    if (hours === null || hours === undefined) return 'No deadline';
     if (hours <= 0) return 'Expired';
     if (hours < 24) return `${hours}h remaining`;
     const days = Math.ceil(hours / 24);
@@ -487,11 +452,11 @@ export default function PendingBookingsPage() {
             </div>
             <div className="mt-4 sm:mt-0 flex space-x-3">
               <button className="bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700 flex items-center">
-                <FaDownload className="w-4 h-4 mr-2" />
+                <FaFileAlt className="w-4 h-4 mr-2" />
                 Export
               </button>
               <button className="bg-green-600 text-white px-4 py-2 rounded-lg hover:bg-green-700 flex items-center">
-                <FaCheck className="w-4 h-4 mr-2" />
+                <FaBan className="w-4 h-4 mr-2" />
                 Bulk Approve
               </button>
             </div>
@@ -505,7 +470,7 @@ export default function PendingBookingsPage() {
           <div className="bg-white p-6 rounded-xl shadow-sm border border-gray-200">
             <div className="flex items-center gap-4">
               <div className="bg-yellow-500 p-3 rounded-lg">
-                <FaHourglassHalf className="w-6 h-6 text-white" />
+                <FaCalendarAlt className="w-6 h-6 text-white" />
               </div>
               <div>
                 <p className="text-sm font-medium text-gray-600">Pending Bookings</p>
@@ -518,7 +483,7 @@ export default function PendingBookingsPage() {
           <div className="bg-white p-6 rounded-xl shadow-sm border border-gray-200">
             <div className="flex items-center gap-4">
               <div className="bg-red-500 p-3 rounded-lg">
-                <FaExclamationTriangle className="w-6 h-6 text-white" />
+                <FaClock className="w-6 h-6 text-white" />
               </div>
               <div>
                 <p className="text-sm font-medium text-gray-600">Urgent</p>
@@ -745,7 +710,7 @@ export default function PendingBookingsPage() {
                       <td className="px-6 py-4 whitespace-nowrap">
                         <div className="flex items-center">
                           <div className="flex-shrink-0 h-10 w-10">
-                            <FaUserCircle className="h-10 w-10 text-gray-400" />
+                            <FaUserTie className="h-10 w-10 text-gray-400" />
                           </div>
                           <div className="ml-4">
                             <div className="text-sm font-medium text-gray-900">
@@ -821,7 +786,7 @@ export default function PendingBookingsPage() {
                             }}
                             className="text-blue-600 hover:text-blue-900"
                           >
-                            <FaEye className="w-4 h-4" />
+                            <FaCalendarAlt className="w-4 h-4" />
                           </button>
                           <button
                             onClick={() => {
@@ -830,7 +795,7 @@ export default function PendingBookingsPage() {
                             }}
                             className="text-green-600 hover:text-green-900"
                           >
-                            <FaCheck className="w-4 h-4" />
+                            <FaBan className="w-4 h-4" />
                           </button>
                           <button
                             onClick={() => {
@@ -839,7 +804,7 @@ export default function PendingBookingsPage() {
                             }}
                             className="text-red-600 hover:text-red-900"
                           >
-                            <FaTimes className="w-4 h-4" />
+                            <FaBan className="w-4 h-4" />
                           </button>
                           <button
                             onClick={() => {
@@ -848,7 +813,7 @@ export default function PendingBookingsPage() {
                             }}
                             className="text-purple-600 hover:text-purple-900"
                           >
-                            <FaEnvelope className="w-4 h-4" />
+                            <FaCreditCard className="w-4 h-4" />
                           </button>
                         </div>
                       </td>
